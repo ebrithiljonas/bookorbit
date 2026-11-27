@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { AlertTriangle, Ban, BookOpen, Clock, Loader2, Pencil, RefreshCw, Tablet, Trash2, Wifi } from '@lucide/vue'
+import { AlertTriangle, Ban, BookOpen, Clock, Link2, Loader2, Pencil, RefreshCw, Tablet, Trash2, Wifi } from '@lucide/vue'
 import type { CrosspointDeviceInfo, CrosspointSyncStatus } from '@bookorbit/types'
 
 import { Button } from '@/components/ui/button'
@@ -14,7 +14,7 @@ const props = defineProps<{
   previewing: boolean
 }>()
 
-const emit = defineEmits<{ sync: []; cancel: []; edit: []; remove: [] }>()
+const emit = defineEmits<{ sync: []; cancel: []; edit: []; endpoint: []; remove: [] }>()
 const { t } = useI18n()
 
 const run = computed(() => props.status?.run ?? null)
@@ -88,6 +88,10 @@ function requestEdit(): void {
   emit('edit')
 }
 
+function requestEndpoint(): void {
+  emit('endpoint')
+}
+
 function requestRemove(): void {
   emit('remove')
 }
@@ -139,6 +143,9 @@ const statusIcon = computed(() => {
         <Button v-else size="sm" variant="outline" @click="requestCancel">
           <Ban :size="13" aria-hidden="true" />
           {{ t('settings.reader.crosspoint.cancelSync') }}
+        </Button>
+        <Button size="icon-sm" variant="ghost" :disabled="syncing" :title="t('settings.reader.crosspoint.syncEndpoint')" @click="requestEndpoint">
+          <Link2 :size="14" aria-hidden="true" />
         </Button>
         <Button size="icon-sm" variant="ghost" :disabled="syncing" :title="t('settings.reader.crosspoint.editReader')" @click="requestEdit">
           <Pencil :size="14" aria-hidden="true" />

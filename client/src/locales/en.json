@@ -3945,8 +3945,8 @@
         "never": "Never",
         "intro": {
           "title": "Sync EPUBs to a CrossPoint reader",
-          "body": "Put the reader into File Transfer mode and keep it on the same Wi-Fi network. BookOrbit uploads the books you choose into the managed folder on the reader's SD card.",
-          "noProgress": "Only books are synced. Reading progress, highlights, bookmarks, and reading status are never sent to the reader."
+          "body": "Put the reader into File Transfer mode and keep it on the same Wi-Fi network. BookOrbit uploads the books you choose, and the reader sync endpoint carries reading progress, bookmarks, and reading time back to BookOrbit.",
+          "noProgress": "Reading progress, bookmarks, and reading time use the reader sync endpoint shown after you add the reader."
         },
         "registeredReaders": "Registered readers",
         "addReader": "Add reader",
@@ -4091,7 +4091,22 @@
           "noLibrarySelection": "Choose at least one library, or switch to all books.",
           "patternPreviewNote": "This is the final path. The book's file extension is added automatically."
         },
-        "librariesSummary": "{count, plural, one {Syncs every EPUB in # selected library.} other {Syncs every EPUB in # selected libraries.}}"
+        "librariesSummary": "{count, plural, one {Syncs every EPUB in # selected library.} other {Syncs every EPUB in # selected libraries.}}",
+        "syncEndpoint": "Sync endpoint",
+        "syncEndpointTitle": "Reader sync endpoint ready",
+        "syncEndpointHint": "Use this URL on {name} for reading progress, bookmarks, and reading time.",
+        "syncEndpointNotShownAgain": "This URL is shown only once. Keep it private. Use the link button on the reader card to generate a new one.",
+        "syncEndpointCopy": "Copy",
+        "syncEndpointCopied": "Sync URL copied to clipboard",
+        "syncEndpointCopyFailed": "Could not copy the sync URL",
+        "syncEndpointFailed": "Could not generate a sync endpoint",
+        "syncEndpointNextSteps": {
+          "title": "Set it up on the reader",
+          "step1": "Open the CrossPoint Sync settings and enter the URL above as the server URL.",
+          "step2": "Use any username and password. The URL identifies this reader.",
+          "step3": "Choose CrossPoint or Other as the server type and keep Send metadata enabled.",
+          "step4": "Leave Sync Clippings off for now."
+        }
       },
       "kobo": {
         "title": "Kobo Sync",

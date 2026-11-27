@@ -12,7 +12,8 @@ const statusByDevice = ref<Record<number, unknown>>({})
 const runs = ref<CrosspointSyncRun[]>([])
 
 const fetchDevices = vi.fn<() => Promise<void>>()
-const createDevice = vi.fn<(payload: unknown) => Promise<CrosspointDeviceInfo>>()
+const createDevice = vi.fn<(payload: unknown) => Promise<CrosspointDeviceSetup>>()
+const rotateSyncToken = vi.fn<(id: number) => Promise<{ syncToken: string }>>()
 const deleteDevice = vi.fn<(id: number) => Promise<void>>()
 const probeAddress = vi.fn<(payload: unknown) => Promise<CrosspointProbeResult>>()
 const previewSync = vi.fn<(deviceId: number) => Promise<CrosspointSyncPreview>>()
@@ -43,6 +44,7 @@ vi.mock('@/features/crosspoint/composables/useCrosspointDevices', () => ({
     error: ref(null),
     fetchDevices,
     createDevice,
+    rotateSyncToken,
     deleteDevice,
     probeAddress,
   }),
@@ -78,7 +80,7 @@ vi.mock('vue-sonner', () => ({
   toast: { success: toastSuccess, error: toastError, info: toastInfo, warning: toastWarning },
 }))
 
-function makeDevice(overrides: Partial<CrosspointDeviceInfo> = {}): CrosspointDeviceInfo {
+function makeDevice(overrides: Partial<CrosspointDeviceSetup> = {}): CrosspointDeviceSetup {
   return {
     id: 1,
     name: 'Bedroom reader',
@@ -90,6 +92,7 @@ function makeDevice(overrides: Partial<CrosspointDeviceInfo> = {}): CrosspointDe
     firmwareVersion: '1.0.0',
     rootFolder: '/BookOrbit',
     fileNamingPattern: '{library}/<{authors:first}|Unknown Author>/<{series}/>{originalFilename}',
+    syncToken: 'b'.repeat(32),
     removeMissing: false,
     selection: { mode: 'all', libraryIds: [], collectionIds: [], smartScopeIds: [] },
     lastSeenAt: null,
@@ -134,7 +137,7 @@ describe('CrosspointSettings', () => {
     fetchLibraries.mockResolvedValue(undefined)
     fetchCollections.mockResolvedValue(undefined)
     fetchSmartScopes.mockResolvedValue(undefined)
-    createDevice.mockResolvedValue(makeDevice({ id: 2, name: 'New reader' }))
+    createDevice.mockResolvedValue(makeDevice({ id: 2, name: 'New reader', syncToken: 'a'.repeat(32) }))
   })
 
   async function mountPage() {
@@ -187,6 +190,8 @@ describe('CrosspointSettings', () => {
 
     expect(createDevice).toHaveBeenCalledWith(expect.objectContaining({ name: 'New reader', host: '192.168.1.60', removeMissing: false }))
     expect(toastSuccess).toHaveBeenCalled()
+    expect(wrapper.text()).toContain('/api/v1/crosspoint/sync/' + 'a'.repeat(32))
+    expect(wrapper.text()).toContain('This URL is shown only once')
   })
 
   it('loads activity when the tab opens', async () => {

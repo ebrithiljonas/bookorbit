@@ -2,7 +2,7 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
-import { Check, Info, Loader2, Plus, Tablet, Wifi, X } from '@lucide/vue'
+import { Check, Copy, Info, Link2, Loader2, Plus, Tablet, Wifi, X } from '@lucide/vue'
 import type { CrosspointDeviceInfo, CrosspointProbeResult, CrosspointSelection, CrosspointSyncPreview } from '@bookorbit/types'
 import { CROSSPOINT_DEFAULT_FILE_NAMING_PATTERN, CROSSPOINT_DEFAULT_ROOT_FOLDER } from '@bookorbit/types'
 import { toast } from 'vue-sonner'
@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 import { formatBytes } from '@/lib/formatting'
 import { errorMessage } from '@/lib/api-json'
+import { copyToClipboard } from '@/lib/clipboard'
 import { useCollections } from '@/features/collection/composables/useCollections'
 import { useLibraries } from '@/features/library/composables/useLibraries'
 import { useSmartScopes } from '@/features/smart-scope/composables/useSmartScopes'
@@ -59,7 +60,16 @@ watch(activeTab, (tab) => {
   if (tab === 'activity') void loadActivity()
 })
 
-const { devices, loading: devicesLoading, error: devicesError, fetchDevices, createDevice, deleteDevice, probeAddress } = useCrosspointDevices()
+const {
+  devices,
+  loading: devicesLoading,
+  error: devicesError,
+  fetchDevices,
+  createDevice,
+  rotateSyncToken,
+  deleteDevice,
+  probeAddress,
+} = useCrosspointDevices()
 const { statusByDevice, runs, runsLoading, previewSync, startSync, fetchStatus, cancelSync, fetchRuns, clearRuns } = useCrosspointSync()
 const { collections, fetchCollections, loading: collectionsLoading } = useCollections()
 const { libraries, fetchLibraries, loading: librariesLoading } = useLibraries()
@@ -79,6 +89,9 @@ const testing = ref(false)
 const probeResult = ref<CrosspointProbeResult | null>(null)
 const creating = ref(false)
 const createError = ref<string | null>(null)
+const syncEndpointUrl = ref<string | null>(null)
+const syncEndpointDeviceName = ref('')
+const rotatingEndpointId = ref<number | null>(null)
 
 watch([newHost, newWsPort, newHttpPort], () => {
   probeResult.value = null
@@ -223,6 +236,8 @@ async function submitCreate(): Promise<void> {
       removeMissing: false,
       selection: newSelection.value,
     })
+    syncEndpointUrl.value = `${window.location.origin}/api/v1/crosspoint/sync/${created.syncToken}`
+    syncEndpointDeviceName.value = created.name
     toast.success(t('settings.reader.crosspoint.readerAdded', { name: created.name }))
     showAddForm.value = false
     resetAddForm()
@@ -235,6 +250,31 @@ async function submitCreate(): Promise<void> {
   } finally {
     creating.value = false
   }
+}
+
+async function showSyncEndpoint(device: CrosspointDeviceInfo): Promise<void> {
+  rotatingEndpointId.value = device.id
+  try {
+    const { syncToken } = await rotateSyncToken(device.id)
+    syncEndpointUrl.value = `${window.location.origin}/api/v1/crosspoint/sync/${syncToken}`
+    syncEndpointDeviceName.value = device.name
+  } catch (reason) {
+    toast.error(errorMessage(reason, 'settings.reader.crosspoint.syncEndpointFailed'))
+  } finally {
+    rotatingEndpointId.value = null
+  }
+}
+
+function dismissSyncEndpoint(): void {
+  syncEndpointUrl.value = null
+  syncEndpointDeviceName.value = ''
+}
+
+async function copySyncEndpoint(): Promise<void> {
+  if (!syncEndpointUrl.value) return
+  const copied = await copyToClipboard(syncEndpointUrl.value)
+  if (copied) toast.success(t('settings.reader.crosspoint.syncEndpointCopied'))
+  else toast.error(t('settings.reader.crosspoint.syncEndpointCopyFailed'))
 }
 
 function openEditor(device: CrosspointDeviceInfo): void {
@@ -486,6 +526,50 @@ onUnmounted(() => {
     <SettingsTabs v-if="!props.embedded" :tabs="tabs" :active-tab="activeTab" @select="selectTab" />
 
     <div v-show="activeTab === 'devices' || props.embedded" id="crosspoint-devices-panel">
+      <div v-if="syncEndpointUrl" class="mb-6 rounded-lg border-2 border-primary/30 bg-primary/5 p-4 shadow-xs">
+        <div class="mb-3 flex items-start justify-between gap-4">
+          <div class="flex items-start gap-2.5">
+            <div class="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/20 text-primary">
+              <Check :size="13" stroke-width="3" aria-hidden="true" />
+            </div>
+            <div>
+              <p class="settings-label mb-0.5 leading-none">{{ t('settings.reader.crosspoint.syncEndpointTitle') }}</p>
+              <p class="settings-hint">{{ t('settings.reader.crosspoint.syncEndpointHint', { name: syncEndpointDeviceName }) }}</p>
+            </div>
+          </div>
+          <Button variant="ghost" size="icon-sm" class="shrink-0" @click="dismissSyncEndpoint">
+            <X :size="18" aria-hidden="true" />
+          </Button>
+        </div>
+
+        <div class="rounded-lg border border-border bg-background p-4">
+          <p class="mb-2.5 text-xs font-bold uppercase tracking-widest text-muted-foreground">
+            {{ t('settings.reader.crosspoint.syncEndpoint') }}
+          </p>
+          <div class="flex items-center gap-2 rounded-md border border-border bg-muted/30 px-3 py-2.5">
+            <Link2 :size="14" class="shrink-0 text-muted-foreground" aria-hidden="true" />
+            <span class="min-w-0 flex-1 select-all truncate font-mono text-sm text-foreground">{{ syncEndpointUrl }}</span>
+            <Button variant="outline" size="sm" class="shrink-0" @click="copySyncEndpoint">
+              <Copy :size="12" aria-hidden="true" />
+              {{ t('settings.reader.crosspoint.syncEndpointCopy') }}
+            </Button>
+          </div>
+        </div>
+
+        <p class="mt-2.5 flex items-center gap-2 rounded-md border border-warning/20 bg-warning/5 px-3 py-2 text-xs font-medium text-warning">
+          <Info :size="14" class="shrink-0" aria-hidden="true" />
+          {{ t('settings.reader.crosspoint.syncEndpointNotShownAgain') }}
+        </p>
+
+        <div class="mt-3 space-y-1.5 rounded-md border border-border bg-background p-4 text-xs text-muted-foreground">
+          <p class="font-semibold text-foreground">{{ t('settings.reader.crosspoint.syncEndpointNextSteps.title') }}</p>
+          <p>{{ t('settings.reader.crosspoint.syncEndpointNextSteps.step1') }}</p>
+          <p>{{ t('settings.reader.crosspoint.syncEndpointNextSteps.step2') }}</p>
+          <p>{{ t('settings.reader.crosspoint.syncEndpointNextSteps.step3') }}</p>
+          <p>{{ t('settings.reader.crosspoint.syncEndpointNextSteps.step4') }}</p>
+        </div>
+      </div>
+
       <div class="mb-6 rounded-lg border border-primary/10 bg-primary/5 p-4">
         <div class="flex items-start gap-3">
           <Info :size="18" class="mt-0.5 shrink-0 text-primary" aria-hidden="true" />
@@ -644,6 +728,7 @@ onUnmounted(() => {
             @sync="requestSync(device)"
             @cancel="requestCancel(device)"
             @edit="openEditor(device)"
+            @endpoint="showSyncEndpoint(device)"
             @remove="requestRemove(device)"
           />
         </div>

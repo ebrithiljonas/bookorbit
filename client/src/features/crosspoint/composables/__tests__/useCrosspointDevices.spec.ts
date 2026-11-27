@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { CrosspointDeviceInfo } from '@bookorbit/types'
+import type { CrosspointDeviceSetup } from '@bookorbit/types'
 
 const { apiMock, MockNetworkError } = vi.hoisted(() => ({
   apiMock: vi.fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>(),
@@ -20,7 +20,7 @@ function makeResponse(data: unknown, options: { ok?: boolean; status?: number } 
   } as Response
 }
 
-function makeDevice(overrides: Partial<CrosspointDeviceInfo> = {}): CrosspointDeviceInfo {
+function makeDevice(overrides: Partial<CrosspointDeviceSetup> = {}): CrosspointDeviceSetup {
   return {
     id: 1,
     name: 'Bedroom reader',
@@ -32,6 +32,7 @@ function makeDevice(overrides: Partial<CrosspointDeviceInfo> = {}): CrosspointDe
     firmwareVersion: '1.0.0',
     rootFolder: '/BookOrbit',
     fileNamingPattern: '{library}/<{authors:first}|Unknown Author>/<{series}/>{originalFilename}',
+    syncToken: 'b'.repeat(32),
     removeMissing: false,
     selection: { mode: 'all', libraryIds: [], collectionIds: [], smartScopeIds: [] },
     lastSeenAt: null,
@@ -76,6 +77,18 @@ describe('useCrosspointDevices', () => {
     await deleteDevice(2)
     expect(devices.value).toEqual([])
     expect(apiMock).toHaveBeenLastCalledWith('/api/v1/crosspoint/devices/2', { method: 'DELETE' })
+  })
+
+  it('creates a setup with a one-time sync token and rotates it', async () => {
+    apiMock
+      .mockResolvedValueOnce(makeResponse(makeDevice({ id: 2, name: 'New reader' })))
+      .mockResolvedValueOnce(makeResponse({ syncToken: 'c'.repeat(32) }))
+    const { useCrosspointDevices } = await import('../useCrosspointDevices')
+    const { createDevice, rotateSyncToken } = useCrosspointDevices()
+
+    await expect(createDevice({ name: 'New reader', host: '192.168.1.50' })).resolves.toMatchObject({ syncToken: 'b'.repeat(32) })
+    await expect(rotateSyncToken(2)).resolves.toEqual({ syncToken: 'c'.repeat(32) })
+    expect(apiMock).toHaveBeenLastCalledWith('/api/v1/crosspoint/devices/2/sync-token', { method: 'POST' })
   })
 
   it('returns probe results', async () => {

@@ -2,6 +2,7 @@ import { ref } from 'vue'
 import type {
   CreateCrosspointDeviceRequest,
   CrosspointDeviceInfo,
+  CrosspointDeviceSetup,
   CrosspointProbeResult,
   ProbeCrosspointDeviceRequest,
   UpdateCrosspointDeviceRequest,
@@ -35,14 +36,22 @@ export function useCrosspointDevices() {
     return fetchPromise
   }
 
-  async function createDevice(payload: CreateCrosspointDeviceRequest): Promise<CrosspointDeviceInfo> {
-    const created = await apiJson<CrosspointDeviceInfo>(
+  async function createDevice(payload: CreateCrosspointDeviceRequest): Promise<CrosspointDeviceSetup> {
+    const created = await apiJson<CrosspointDeviceSetup>(
       '/api/v1/crosspoint/devices',
       jsonBody('POST', payload),
       'settings.reader.crosspoint.createDeviceFailed',
     )
     devices.value = [...devices.value, created]
     return created
+  }
+
+  async function rotateSyncToken(id: number): Promise<{ syncToken: string }> {
+    return apiJson<{ syncToken: string }>(
+      `/api/v1/crosspoint/devices/${id}/sync-token`,
+      { method: 'POST' },
+      'settings.reader.crosspoint.syncTokenFailed',
+    )
   }
 
   async function updateDevice(id: number, payload: UpdateCrosspointDeviceRequest): Promise<CrosspointDeviceInfo> {
@@ -74,6 +83,7 @@ export function useCrosspointDevices() {
     error,
     fetchDevices,
     createDevice,
+    rotateSyncToken,
     updateDevice,
     deleteDevice,
     probeAddress,
