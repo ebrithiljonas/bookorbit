@@ -35,6 +35,7 @@ export * from "./metadata-fetch";
 export * from "./metadata-cache";
 export * from "./metadata-http-provider";
 export * from "./pattern-resolver";
+export * from "./crosspoint";
 export * from "./query";
 export * from "./jump-buckets";
 export * from "./reader-settings";

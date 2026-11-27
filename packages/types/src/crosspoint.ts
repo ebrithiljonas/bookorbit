@@ -1,0 +1,116 @@
+export const CROSSPOINT_SELECTION_MODES = ["all", "selected"] as const;
+export type CrosspointSelectionMode = (typeof CROSSPOINT_SELECTION_MODES)[number];
+
+export const CROSSPOINT_DEVICE_MODELS = ["X3", "X4"] as const;
+export type CrosspointDeviceModel = (typeof CROSSPOINT_DEVICE_MODELS)[number];
+
+export const CROSSPOINT_SYNC_RUN_STATUSES = ["running", "completed", "failed", "cancelled", "interrupted"] as const;
+export type CrosspointSyncRunStatus = (typeof CROSSPOINT_SYNC_RUN_STATUSES)[number];
+
+export const CROSSPOINT_DEFAULT_ROOT_FOLDER = "/BookOrbit";
+export const CROSSPOINT_DEFAULT_FILE_NAMING_PATTERN = "<{authors:first} - >{title}";
+export const CROSSPOINT_DEFAULT_WS_PORT = 81;
+export const CROSSPOINT_DEFAULT_HTTP_PORT = 80;
+
+/** Which books a reader receives: everything, or only the chosen collections and smart scopes. */
+export interface CrosspointSelection {
+  mode: CrosspointSelectionMode;
+  collectionIds: number[];
+  smartScopeIds: number[];
+}
+
+export interface CrosspointDeviceInfo {
+  id: number;
+  name: string;
+  host: string;
+  wsPort: number;
+  httpPort: number;
+  /** Stable id the firmware derives from its NVS secret and the `bookorbit` plugin name. */
+  deviceId: string | null;
+  deviceModel: CrosspointDeviceModel | null;
+  firmwareVersion: string | null;
+  rootFolder: string;
+  fileNamingPattern: string;
+  removeMissing: boolean;
+  selection: CrosspointSelection;
+  lastSeenAt: string | null;
+  lastSyncAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CrosspointDiscoveredDevice {
+  host: string;
+  wsPort: number;
+  httpPort: number;
+  hostname: string | null;
+  deviceId: string | null;
+  deviceModel: CrosspointDeviceModel | null;
+  firmwareVersion: string | null;
+  reachable: boolean;
+  isCrosspoint: boolean;
+  alreadyAdded: boolean;
+}
+
+export interface CrosspointProbeResult {
+  reachable: boolean;
+  isCrosspoint: boolean;
+  deviceId: string | null;
+  deviceModel: CrosspointDeviceModel | null;
+  firmwareVersion: string | null;
+  mode: string | null;
+  ip: string | null;
+  error: string | null;
+}
+
+export interface ProbeCrosspointDeviceRequest {
+  host: string;
+  wsPort?: number;
+  httpPort?: number;
+}
+
+export interface CreateCrosspointDeviceRequest extends ProbeCrosspointDeviceRequest {
+  name: string;
+  rootFolder?: string;
+  fileNamingPattern?: string;
+  removeMissing?: boolean;
+  selection?: CrosspointSelection;
+}
+
+export interface UpdateCrosspointDeviceRequest {
+  name?: string;
+  host?: string;
+  wsPort?: number;
+  httpPort?: number;
+  rootFolder?: string;
+  fileNamingPattern?: string;
+  removeMissing?: boolean;
+  selection?: CrosspointSelection;
+}
+
+export interface CrosspointSyncFailure {
+  bookId: number;
+  title: string | null;
+  remotePath: string | null;
+  errorClass: string;
+  error: string;
+}
+
+export interface CrosspointSyncRun {
+  id: number;
+  deviceId: number;
+  status: CrosspointSyncRunStatus;
+  totalBooks: number;
+  uploaded: number;
+  skipped: number;
+  deleted: number;
+  failed: number;
+  totalBytes: number | null;
+  transferredBytes: number;
+  errorClass: string | null;
+  error: string | null;
+  failures: CrosspointSyncFailure[];
+  startedAt: string;
+  finishedAt: string | null;
+  createdAt: string;
+}
