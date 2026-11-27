@@ -159,6 +159,11 @@ export enum AuditAction {
   KoboDeviceRename = "kobo.device.rename",
   KoboDeviceRemove = "kobo.device.remove",
 
+  CrosspointDeviceRegister = "crosspoint.device.register",
+  CrosspointDeviceUpdate = "crosspoint.device.update",
+  CrosspointDeviceRemove = "crosspoint.device.remove",
+  CrosspointDeviceSync = "crosspoint.device.sync",
+
   EmailProviderCreate = "email.provider.create",
   EmailProviderUpdate = "email.provider.update",
   EmailProviderDelete = "email.provider.delete",
@@ -205,6 +210,7 @@ export enum AuditResource {
   Genre = "genre",
   Tag = "tag",
   KoboDevice = "kobo_device",
+  CrosspointDevice = "crosspoint_device",
   EmailProvider = "email_provider",
   EmailTemplate = "email_template",
   EmailRecipient = "email_recipient",
@@ -276,7 +282,7 @@ export const AUDIT_CATEGORY_PREFIXES: Record<Exclude<AuditCategory, "other">, re
   books: ["book.", "book_dock.", "ai_job."],
   requests: ["book_request.", "download_client.", "request_indexer."],
   collections: ["collection.", "smart_scope."],
-  devices: ["kobo.", "email."],
+  devices: ["kobo.", "crosspoint.", "email."],
   settings: ["app_settings.", "entity_manager.", "author.", "maintenance.", "metadata_http_provider.", "ai.", "library_dock."],
 };
 

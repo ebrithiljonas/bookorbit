@@ -14,6 +14,7 @@ export enum Permission {
   // Devices & Access
   KoboSync = "kobo_sync",
   KoreaderSync = "koreader_sync",
+  CrosspointSync = "crosspoint_sync",
   HardcoverSync = "hardcover_sync",
   ReadwiseSync = "readwise_sync",
   StorygraphSync = "storygraph_sync",
@@ -54,6 +55,7 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   [Permission.DemoRestricted]: "Demo restricted",
   [Permission.KoboSync]: "Kobo sync",
   [Permission.KoreaderSync]: "KOReader sync",
+  [Permission.CrosspointSync]: "CrossPoint sync",
   [Permission.HardcoverSync]: "Hardcover sync",
   [Permission.ReadwiseSync]: "Readwise sync",
   [Permission.StorygraphSync]: "StoryGraph sync",

@@ -48,6 +48,7 @@ import { BookAliasModule } from './modules/book-alias/book-alias.module';
 import { CatalogModule } from './modules/catalog/catalog.module';
 import { CoverModule } from './modules/cover/cover.module';
 import { KoboModule } from './modules/kobo/kobo.module';
+import { CrosspointModule } from './modules/crosspoint/crosspoint.module';
 import { LibraryModule } from './modules/library/library.module';
 import { SmartScopeModule } from './modules/smart-scope/smart-scope.module';
 import { OpdsModule } from './modules/opds/opds.module';
@@ -191,6 +192,7 @@ import { BulkRunsModule } from './modules/bulk-runs/bulk-runs.module';
     CustomIconModule,
     RecommendationModule,
     KoboModule,
+    CrosspointModule,
     OpdsModule,
     BookmarkModule,
     BookJournalModule,

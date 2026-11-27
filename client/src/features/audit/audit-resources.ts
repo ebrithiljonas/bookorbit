@@ -31,6 +31,7 @@ const domainByResource: Record<AuditResource, AuditResourceDomain> = {
   [AuditResource.Genre]: 'metadata',
   [AuditResource.Tag]: 'metadata',
   [AuditResource.KoboDevice]: 'integrations',
+  [AuditResource.CrosspointDevice]: 'integrations',
   [AuditResource.EmailProvider]: 'integrations',
   [AuditResource.EmailTemplate]: 'integrations',
   [AuditResource.EmailRecipient]: 'integrations',

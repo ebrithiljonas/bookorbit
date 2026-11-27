@@ -82,6 +82,11 @@ const TARGET_LABELS: Partial<Record<AuditResource, { table: PgTable; id: PgColum
   [AuditResource.DownloadClient]: { table: schema.downloadClients, id: schema.downloadClients.id, label: sql`${schema.downloadClients.name}` },
   [AuditResource.RequestIndexer]: { table: schema.requestIndexers, id: schema.requestIndexers.id, label: sql`${schema.requestIndexers.name}` },
   [AuditResource.KoboDevice]: { table: schema.koboDevices, id: schema.koboDevices.id, label: sql`${schema.koboDevices.name}` },
+  [AuditResource.CrosspointDevice]: {
+    table: schema.crosspointDevices,
+    id: schema.crosspointDevices.id,
+    label: sql`${schema.crosspointDevices.name}`,
+  },
   [AuditResource.EmailProvider]: { table: schema.emailProviders, id: schema.emailProviders.id, label: sql`${schema.emailProviders.name}` },
   [AuditResource.EmailTemplate]: { table: schema.emailTemplates, id: schema.emailTemplates.id, label: sql`${schema.emailTemplates.name}` },
   [AuditResource.EmailRecipient]: { table: schema.emailRecipients, id: schema.emailRecipients.id, label: sql`${schema.emailRecipients.name}` },

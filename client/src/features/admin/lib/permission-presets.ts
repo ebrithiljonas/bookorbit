@@ -31,7 +31,7 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
   },
   {
     id: 'devicesAccess',
-    use: [Permission.KoboSync, Permission.KoreaderSync, Permission.OpdsAccess, Permission.ApiKeys],
+    use: [Permission.KoboSync, Permission.KoreaderSync, Permission.CrosspointSync, Permission.OpdsAccess, Permission.ApiKeys],
     manage: [],
   },
   {
