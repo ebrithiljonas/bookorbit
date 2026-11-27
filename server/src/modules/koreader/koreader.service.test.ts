@@ -1219,6 +1219,29 @@ describe('KoreaderService', () => {
       });
     });
 
+    it('keeps a fresh rich device position when the inserted reading row has the same second', async () => {
+      const deviceTime = new Date('2026-02-01T10:00:00.000Z');
+      mockRepo.resolveBookFileByHash.mockResolvedValue({ id: 10, bookId: 20, libraryId: 1 });
+      mockRepo.getLatestDeviceProgress.mockResolvedValue({
+        percentage: 0.66,
+        progress: '/body/DocFragment[8]/body',
+        position: { pctQ: 660000, spine: 7 },
+        device: 'CrossPoint',
+        deviceId: 'crosspoint-3',
+        syncTimestamp: null,
+        updatedAt: deviceTime,
+      });
+      mockRepo.getReadingProgress.mockResolvedValue({ percentage: 66, updatedAt: new Date('2026-02-01T10:00:00.500Z') });
+
+      await expect(service.getProgress(7, 'doc-hash')).resolves.toEqual(
+        expect.objectContaining({
+          device: 'CrossPoint',
+          device_id: 'crosspoint-3',
+          position: { pctQ: 660000, spine: 7 },
+        }),
+      );
+    });
+
     it('adds the name the user gave the device without changing the reported model', async () => {
       const latestDeviceTime = new Date('2026-02-01T10:00:00.000Z');
       mockRepo.resolveBookFileByHash.mockResolvedValue({ id: 10, bookId: 20, libraryId: 1 });

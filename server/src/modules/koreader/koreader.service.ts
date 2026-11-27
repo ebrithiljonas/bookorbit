@@ -609,11 +609,14 @@ export class KoreaderService {
 
     // Compare server timestamps to find the most recent source.
     // reading_progress.updatedAt is only set by the web reader (KOReader sync deliberately
-    // preserves the existing value), so this comparison is accurate.
+    // preserves the existing value), so this comparison is accurate. A CrossPoint row also
+    // carries a rich position; the first push inserts both rows in the same request, so a
+    // sub-second tie must keep the device row or the rich position would be lost on the pull.
     const deviceTime = latestDevice?.updatedAt?.getTime() ?? 0;
     const readerTime = readingProg?.updatedAt?.getTime() ?? 0;
+    const deviceHasFreshRichPosition = Boolean(latestDevice?.position) && readerTime - deviceTime < 1000;
 
-    if (latestDevice && deviceTime >= readerTime) {
+    if (latestDevice && (deviceTime >= readerTime || deviceHasFreshRichPosition)) {
       const deviceName = (await this.repo.getDeviceNames(userId, [latestDevice.deviceId])).get(latestDevice.deviceId);
       return {
         document: documentHash,
