@@ -31,9 +31,9 @@ function makeDevice(overrides: Partial<CrosspointDeviceInfo> = {}): CrosspointDe
     deviceModel: 'X4',
     firmwareVersion: '1.0.0',
     rootFolder: '/BookOrbit',
-    fileNamingPattern: '<{authors:first} - >{title}',
+    fileNamingPattern: '{library}/<{authors:first}|Unknown Author>/<{series}/>{originalFilename}',
     removeMissing: false,
-    selection: { mode: 'all', collectionIds: [], smartScopeIds: [] },
+    selection: { mode: 'all', libraryIds: [], collectionIds: [], smartScopeIds: [] },
     lastSeenAt: null,
     lastSyncAt: null,
     createdAt: '2026-01-01T00:00:00.000Z',
@@ -78,14 +78,11 @@ describe('useCrosspointDevices', () => {
     expect(apiMock).toHaveBeenLastCalledWith('/api/v1/crosspoint/devices/2', { method: 'DELETE' })
   })
 
-  it('returns discovery and probe results', async () => {
-    apiMock
-      .mockResolvedValueOnce(makeResponse([{ host: '192.168.1.50', wsPort: 81, httpPort: 80, reachable: true }]))
-      .mockResolvedValueOnce(makeResponse({ reachable: true, isCrosspoint: true }))
+  it('returns probe results', async () => {
+    apiMock.mockResolvedValueOnce(makeResponse({ reachable: true, isCrosspoint: true }))
     const { useCrosspointDevices } = await import('../useCrosspointDevices')
-    const { discover, probeAddress } = useCrosspointDevices()
+    const { probeAddress } = useCrosspointDevices()
 
-    await expect(discover()).resolves.toEqual([{ host: '192.168.1.50', wsPort: 81, httpPort: 80, reachable: true }])
     await expect(probeAddress({ host: '192.168.1.50' })).resolves.toMatchObject({ reachable: true, isCrosspoint: true })
   })
 

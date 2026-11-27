@@ -1,14 +1,7 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
-import type {
-  CrosspointDeviceInfo,
-  CrosspointDiscoveredDevice,
-  CrosspointProbeResult,
-  CrosspointSyncPreview,
-  CrosspointSyncRun,
-  CrosspointSyncStatus,
-} from '@bookorbit/types'
+import type { CrosspointDeviceInfo, CrosspointProbeResult, CrosspointSyncPreview, CrosspointSyncRun, CrosspointSyncStatus } from '@bookorbit/types'
 
 import { i18n } from '@/i18n'
 
@@ -21,7 +14,6 @@ const runs = ref<CrosspointSyncRun[]>([])
 const fetchDevices = vi.fn<() => Promise<void>>()
 const createDevice = vi.fn<(payload: unknown) => Promise<CrosspointDeviceInfo>>()
 const deleteDevice = vi.fn<(id: number) => Promise<void>>()
-const discover = vi.fn<() => Promise<CrosspointDiscoveredDevice[]>>()
 const probeAddress = vi.fn<(payload: unknown) => Promise<CrosspointProbeResult>>()
 const previewSync = vi.fn<(deviceId: number) => Promise<CrosspointSyncPreview>>()
 const startSync = vi.fn<(deviceId: number) => Promise<number>>()
@@ -29,6 +21,7 @@ const fetchStatus = vi.fn<(deviceId: number) => Promise<CrosspointSyncStatus>>()
 const cancelSync = vi.fn<(deviceId: number) => Promise<void>>()
 const fetchRuns = vi.fn<() => Promise<CrosspointSyncRun[]>>()
 const clearRuns = vi.fn<() => void>()
+const fetchLibraries = vi.fn<() => Promise<void>>()
 const fetchCollections = vi.fn<() => Promise<void>>()
 const fetchSmartScopes = vi.fn<() => Promise<void>>()
 const { toastSuccess, toastError, toastInfo, toastWarning } = vi.hoisted(() => ({
@@ -51,7 +44,6 @@ vi.mock('@/features/crosspoint/composables/useCrosspointDevices', () => ({
     fetchDevices,
     createDevice,
     deleteDevice,
-    discover,
     probeAddress,
   }),
 }))
@@ -68,6 +60,10 @@ vi.mock('@/features/crosspoint/composables/useCrosspointSync', () => ({
     fetchRuns,
     clearRuns,
   }),
+}))
+
+vi.mock('@/features/library/composables/useLibraries', () => ({
+  useLibraries: () => ({ libraries: ref([]), loading: ref(false), fetchLibraries }),
 }))
 
 vi.mock('@/features/collection/composables/useCollections', () => ({
@@ -93,9 +89,9 @@ function makeDevice(overrides: Partial<CrosspointDeviceInfo> = {}): CrosspointDe
     deviceModel: 'X4',
     firmwareVersion: '1.0.0',
     rootFolder: '/BookOrbit',
-    fileNamingPattern: '<{authors:first} - >{title}',
+    fileNamingPattern: '{library}/<{authors:first}|Unknown Author>/<{series}/>{originalFilename}',
     removeMissing: false,
-    selection: { mode: 'all', collectionIds: [], smartScopeIds: [] },
+    selection: { mode: 'all', libraryIds: [], collectionIds: [], smartScopeIds: [] },
     lastSeenAt: null,
     lastSyncAt: null,
     createdAt: '2026-01-01T00:00:00.000Z',
@@ -135,9 +131,9 @@ describe('CrosspointSettings', () => {
     fetchDevices.mockResolvedValue(undefined)
     fetchStatus.mockResolvedValue({ run: null, currentBook: null })
     fetchRuns.mockResolvedValue([])
+    fetchLibraries.mockResolvedValue(undefined)
     fetchCollections.mockResolvedValue(undefined)
     fetchSmartScopes.mockResolvedValue(undefined)
-    discover.mockResolvedValue([])
     createDevice.mockResolvedValue(makeDevice({ id: 2, name: 'New reader' }))
   })
 
@@ -161,20 +157,16 @@ describe('CrosspointSettings', () => {
     expect(wrapper.text()).toContain('Add reader')
   })
 
-  it('opens the add form and reports an empty network scan', async () => {
+  it('opens the add form with the book selection', async () => {
     const wrapper = await mountPage()
     await flushPromises()
 
     const add = wrapper.findAll('button').find((button) => button.text().includes('Add reader'))
     await add!.trigger('click')
+
     expect(wrapper.find('#crosspoint-new-name').exists()).toBe(true)
-
-    const scan = wrapper.findAll('button').find((button) => button.text().includes('Scan network'))
-    await scan!.trigger('click')
-    await flushPromises()
-
-    expect(discover).toHaveBeenCalledTimes(1)
-    expect(wrapper.text()).toContain('No CrossPoint readers answered')
+    expect(wrapper.text()).toContain('All books')
+    expect(wrapper.text()).toContain('Selected libraries')
   })
 
   it('creates a reader from the add form', async () => {

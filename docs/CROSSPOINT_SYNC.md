@@ -7,29 +7,31 @@ Reading progress, highlights, bookmarks, and reading status are not part of this
 ## Requirements
 
 - The CrossPoint Reader and the BookOrbit server must be on the same network, or otherwise reachable from the server.
-- Put the reader into File Transfer or Calibre Wireless mode while syncing.
-- The server must be able to reach the reader's IP address. In Docker bridge mode, outbound TCP usually works, but UDP network discovery may not. Enter the address shown on the reader if scan finds nothing.
+- Put the reader into File Transfer mode while syncing.
+- The server must be able to reach the reader's IP address. In Docker bridge mode, outbound TCP usually works. Enter the address shown on the reader.
 - Only books with an EPUB file are uploaded. PDF, CBZ, MOBI, and other formats are skipped.
 
 ## Add a reader
 
 1. Open **Settings > Devices > CrossPoint**.
 2. Select **Add reader**.
-3. Use **Scan network**, or enter the IP address or hostname shown on the reader.
+3. Enter the IP address or hostname shown on the reader.
 4. Leave the upload port at `81` and the web port at `80` unless your setup uses different ports.
 5. Use **Test connection** to check the address. The reader should report its model and firmware.
-6. Select **Add reader**.
+6. Choose what to sync: all books, selected libraries, or selected collections and smart scopes.
+7. Select **Add reader**.
 
-The new reader starts with the managed folder `/BookOrbit`, the filename pattern `<{authors:first} - >{title}`, and all accessible books selected.
+The new reader starts with the managed folder `/BookOrbit`, the filename pattern `{library}/<{authors:first}|Unknown Author>/<{series}/>{originalFilename}`, and all accessible books selected.
 
 ## Choose books
 
 Open the reader's edit sheet to change what it receives.
 
 - **All books** sends every EPUB the account can access.
+- **Selected libraries** sends every EPUB in the chosen libraries.
 - **Selected collections and smart scopes** sends only books in the chosen collections or matching the chosen smart scopes.
-- Library access and account content filters still apply in both modes.
-- If selected mode has no collections or smart scopes, nothing is sent.
+- Library access and account content filters still apply in all modes.
+- If a selected mode has no choices, nothing is sent.
 
 ## Files on the reader
 
@@ -53,7 +55,7 @@ Changing the pattern changes the paths on the next sync. With removal enabled, t
 
 ## Troubleshooting
 
-**The reader cannot be reached.** Check that it is in File Transfer or Calibre Wireless mode, that it is on the same Wi-Fi network, and that the address is correct.
+**The reader cannot be reached.** Check that it is in File Transfer mode, that it is on the same Wi-Fi network, and that the address is correct.
 
 **The address is not a CrossPoint reader.** Another device answered at that address. Check the IP shown on the reader.
 
@@ -62,8 +64,6 @@ Changing the pattern changes the paths on the next sync. With removal enabled, t
 **A file already exists on the reader.** BookOrbit treats the managed folder as its own. If an untracked file has the same name, the reader upload rejects it. BookOrbit adds a book-id suffix when it detects a collision.
 
 **The reader reports that it is out of space.** Free space on the SD card or reduce the selected books, then run the sync again.
-
-**Network scan finds nothing.** UDP broadcast may be blocked by Docker or the network. Enter the reader's IP address manually.
 
 ## Limitations
 

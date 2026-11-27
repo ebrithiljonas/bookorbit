@@ -6,6 +6,15 @@ import { i18n } from '@/i18n'
 import CrosspointPatternField from '../CrosspointPatternField.vue'
 
 describe('CrosspointPatternField', () => {
+  it('previews the shipped default pattern', () => {
+    const wrapper = mount(CrosspointPatternField, {
+      props: { modelValue: CROSSPOINT_DEFAULT_FILE_NAMING_PATTERN, rootFolder: '/BookOrbit' },
+      global: { plugins: [i18n] },
+    })
+
+    expect(wrapper.text()).toContain('/BookOrbit/Books/William Gibson/Sprawl/neuromancer.epub')
+  })
+
   it('previews the resolved path under the managed folder', async () => {
     const wrapper = mount(CrosspointPatternField, {
       props: { modelValue: '<{authors:first} - >{title}', rootFolder: '/BookOrbit' },

@@ -2,8 +2,8 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
-import { Check, Info, Loader2, Plus, Search, Tablet, Wifi, X } from '@lucide/vue'
-import type { CrosspointDeviceInfo, CrosspointDiscoveredDevice, CrosspointProbeResult, CrosspointSyncPreview } from '@bookorbit/types'
+import { Check, Info, Loader2, Plus, Tablet, Wifi, X } from '@lucide/vue'
+import type { CrosspointDeviceInfo, CrosspointProbeResult, CrosspointSelection, CrosspointSyncPreview } from '@bookorbit/types'
 import { CROSSPOINT_DEFAULT_FILE_NAMING_PATTERN, CROSSPOINT_DEFAULT_ROOT_FOLDER } from '@bookorbit/types'
 import { toast } from 'vue-sonner'
 
@@ -12,10 +12,12 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 import { formatBytes } from '@/lib/formatting'
 import { errorMessage } from '@/lib/api-json'
 import { useCollections } from '@/features/collection/composables/useCollections'
+import { useLibraries } from '@/features/library/composables/useLibraries'
 import { useSmartScopes } from '@/features/smart-scope/composables/useSmartScopes'
 import { useCrosspointDevices } from '@/features/crosspoint/composables/useCrosspointDevices'
 import { useCrosspointSync } from '@/features/crosspoint/composables/useCrosspointSync'
 import CrosspointActivityList from '@/features/crosspoint/components/CrosspointActivityList.vue'
+import CrosspointBookSelectionFields from '@/features/crosspoint/components/CrosspointBookSelectionFields.vue'
 import CrosspointDeviceCard from '@/features/crosspoint/components/CrosspointDeviceCard.vue'
 import CrosspointDeviceEditor from '@/features/crosspoint/components/CrosspointDeviceEditor.vue'
 import SettingsEmptyPanel from './components/SettingsEmptyPanel.vue'
@@ -57,22 +59,14 @@ watch(activeTab, (tab) => {
   if (tab === 'activity') void loadActivity()
 })
 
-const {
-  devices,
-  loading: devicesLoading,
-  error: devicesError,
-  fetchDevices,
-  createDevice,
-  deleteDevice,
-  discover,
-  probeAddress,
-} = useCrosspointDevices()
+const { devices, loading: devicesLoading, error: devicesError, fetchDevices, createDevice, deleteDevice, probeAddress } = useCrosspointDevices()
 const { statusByDevice, runs, runsLoading, previewSync, startSync, fetchStatus, cancelSync, fetchRuns, clearRuns } = useCrosspointSync()
 const { collections, fetchCollections, loading: collectionsLoading } = useCollections()
+const { libraries, fetchLibraries, loading: librariesLoading } = useLibraries()
 const { smartScopes, fetchSmartScopes, loading: smartScopesLoading } = useSmartScopes()
 
 const loading = ref(true)
-const optionsLoading = computed(() => collectionsLoading.value || smartScopesLoading.value)
+const optionsLoading = computed(() => librariesLoading.value || collectionsLoading.value || smartScopesLoading.value)
 const pollTimers = new Map<number, ReturnType<typeof setTimeout>>()
 
 const showAddForm = ref(false)
@@ -80,9 +74,7 @@ const newName = ref('')
 const newHost = ref('')
 const newWsPort = ref(81)
 const newHttpPort = ref(80)
-const scanning = ref(false)
-const discovered = ref<CrosspointDiscoveredDevice[]>([])
-const discoverError = ref<string | null>(null)
+const newSelection = ref<CrosspointSelection>({ mode: 'all', libraryIds: [], collectionIds: [], smartScopeIds: [] })
 const testing = ref(false)
 const probeResult = ref<CrosspointProbeResult | null>(null)
 const creating = ref(false)
@@ -170,8 +162,7 @@ function resetAddForm(): void {
   newHost.value = ''
   newWsPort.value = 81
   newHttpPort.value = 80
-  discovered.value = []
-  discoverError.value = null
+  newSelection.value = { mode: 'all', libraryIds: [], collectionIds: [], smartScopeIds: [] }
   probeResult.value = null
   createError.value = null
 }
@@ -185,41 +176,6 @@ function cancelAdd(): void {
   if (creating.value) return
   showAddForm.value = false
   resetAddForm()
-}
-
-async function scanNetwork(): Promise<void> {
-  scanning.value = true
-  discoverError.value = null
-  discovered.value = []
-  try {
-    discovered.value = await discover()
-    if (discovered.value.length === 0) {
-      discoverError.value = t('settings.reader.crosspoint.scanEmpty')
-    }
-  } catch (reason) {
-    discoverError.value = errorMessage(reason, 'settings.reader.crosspoint.scanFailed')
-  } finally {
-    scanning.value = false
-  }
-}
-
-function useDiscovered(device: CrosspointDiscoveredDevice): void {
-  newHost.value = device.host
-  newWsPort.value = device.wsPort
-  newHttpPort.value = device.httpPort
-  if (!newName.value.trim()) {
-    newName.value = device.hostname ?? device.deviceModel ?? 'CrossPoint Reader'
-  }
-  discoverError.value = null
-  probeResult.value = null
-  createError.value = null
-}
-
-function discoveredLabel(device: CrosspointDiscoveredDevice): string {
-  if (device.alreadyAdded) return t('settings.reader.crosspoint.alreadyAdded')
-  if (!device.reachable) return t('settings.reader.crosspoint.unreachable')
-  if (!device.isCrosspoint) return t('settings.reader.crosspoint.wrongDevice')
-  return [device.deviceModel, device.firmwareVersion].filter(Boolean).join(' · ') || t('settings.reader.crosspoint.unknownModel')
 }
 
 async function testConnection(): Promise<void> {
@@ -265,7 +221,7 @@ async function submitCreate(): Promise<void> {
       rootFolder: CROSSPOINT_DEFAULT_ROOT_FOLDER,
       fileNamingPattern: CROSSPOINT_DEFAULT_FILE_NAMING_PATTERN,
       removeMissing: false,
-      selection: { mode: 'all', collectionIds: [], smartScopeIds: [] },
+      selection: newSelection.value,
     })
     toast.success(t('settings.reader.crosspoint.readerAdded', { name: created.name }))
     showAddForm.value = false
@@ -476,7 +432,7 @@ function handleSelectActivityDevice(deviceId: number): void {
 
 async function loadPage(): Promise<void> {
   loading.value = true
-  await Promise.allSettled([fetchDevices(true), fetchCollections(), fetchSmartScopes()])
+  await Promise.allSettled([fetchDevices(true), fetchLibraries(), fetchCollections(), fetchSmartScopes()])
 
   if (devices.value.length > 0) {
     if (!selectedActivityDeviceId.value || !devices.value.some((device) => device.id === selectedActivityDeviceId.value)) {
@@ -620,41 +576,11 @@ onUnmounted(() => {
           </div>
 
           <div class="flex flex-wrap items-center gap-2">
-            <Button size="sm" variant="outline" type="button" :disabled="scanning || creating" @click="scanNetwork">
-              <Loader2 v-if="scanning" :size="13" class="animate-spin" aria-hidden="true" />
-              <Search v-else :size="13" aria-hidden="true" />
-              {{ scanning ? t('settings.reader.crosspoint.scanning') : t('settings.reader.crosspoint.scanNetwork') }}
-            </Button>
             <Button size="sm" variant="outline" type="button" :disabled="testing || creating" @click="testConnection">
               <Loader2 v-if="testing" :size="13" class="animate-spin" aria-hidden="true" />
               <Wifi v-else :size="13" aria-hidden="true" />
               {{ testing ? t('settings.reader.crosspoint.testing') : t('settings.reader.crosspoint.testConnection') }}
             </Button>
-          </div>
-
-          <div v-if="discoverError" class="text-xs text-muted-foreground">{{ discoverError }}</div>
-
-          <div v-if="discovered.length > 0" class="space-y-1.5">
-            <p class="settings-group-label mb-0">{{ t('settings.reader.crosspoint.discoveredReaders') }}</p>
-            <button
-              v-for="device in discovered"
-              :key="`${device.host}:${device.wsPort}`"
-              type="button"
-              class="flex w-full items-center gap-3 rounded-md border border-border bg-background px-3 py-2 text-left transition-colors hover:bg-muted/40 disabled:cursor-not-allowed disabled:opacity-60"
-              :disabled="device.alreadyAdded || !device.reachable || !device.isCrosspoint"
-              @click="useDiscovered(device)"
-            >
-              <Tablet :size="15" class="shrink-0 text-muted-foreground" aria-hidden="true" />
-              <span class="min-w-0 flex-1">
-                <span class="block truncate font-mono text-xs text-foreground">{{ device.host }}:{{ device.wsPort }}</span>
-                <span class="block truncate text-xs text-muted-foreground">
-                  {{ device.hostname ? `${device.hostname} · ` : '' }}{{ discoveredLabel(device) }}
-                </span>
-              </span>
-              <span class="shrink-0 text-xs font-medium text-primary">
-                {{ device.alreadyAdded ? t('settings.reader.crosspoint.alreadyAddedShort') : t('settings.reader.crosspoint.useReader') }}
-              </span>
-            </button>
           </div>
 
           <div
@@ -666,6 +592,21 @@ onUnmounted(() => {
             <X v-else :size="14" class="mt-0.5 shrink-0" aria-hidden="true" />
             <span>{{ probeSummary.text }}</span>
           </div>
+
+          <section class="space-y-3 border-t border-border pt-4">
+            <div>
+              <h3 class="settings-group-label mb-0">{{ t('settings.reader.crosspoint.editor.booksTitle') }}</h3>
+              <p class="settings-hint">{{ t('settings.reader.crosspoint.editor.booksHint') }}</p>
+            </div>
+            <CrosspointBookSelectionFields
+              v-model="newSelection"
+              :libraries="libraries"
+              :collections="collections"
+              :smart-scopes="smartScopes"
+              :options-loading="optionsLoading"
+              :disabled="creating"
+            />
+          </section>
 
           <p v-if="createError" role="alert" class="text-xs text-destructive">{{ createError }}</p>
 
@@ -723,6 +664,7 @@ onUnmounted(() => {
     <CrosspointDeviceEditor
       :open="editorOpen"
       :device="editingDevice"
+      :libraries="libraries"
       :collections="collections"
       :smart-scopes="smartScopes"
       :options-loading="optionsLoading"

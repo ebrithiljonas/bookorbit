@@ -41,6 +41,10 @@ const currentPercent = computed(() => {
 const selectionSummary = computed(() => {
   const selection = props.device.selection
   if (selection.mode === 'all') return t('settings.reader.crosspoint.allBooksSummary')
+  if (selection.mode === 'libraries') {
+    if (selection.libraryIds.length === 0) return t('settings.reader.crosspoint.noBooksSelected')
+    return t('settings.reader.crosspoint.librariesSummary', { count: selection.libraryIds.length })
+  }
   const total = selection.collectionIds.length + selection.smartScopeIds.length
   if (total === 0) return t('settings.reader.crosspoint.noBooksSelected')
   return t('settings.reader.crosspoint.selectedBooksSummary', {

@@ -2,7 +2,6 @@ import { ref } from 'vue'
 import type {
   CreateCrosspointDeviceRequest,
   CrosspointDeviceInfo,
-  CrosspointDiscoveredDevice,
   CrosspointProbeResult,
   ProbeCrosspointDeviceRequest,
   UpdateCrosspointDeviceRequest,
@@ -61,10 +60,6 @@ export function useCrosspointDevices() {
     devices.value = devices.value.filter((device) => device.id !== id)
   }
 
-  async function discover(): Promise<CrosspointDiscoveredDevice[]> {
-    return apiJson<CrosspointDiscoveredDevice[]>('/api/v1/crosspoint/discover', undefined, 'settings.reader.crosspoint.scanFailed')
-  }
-
   async function probeAddress(payload: ProbeCrosspointDeviceRequest): Promise<CrosspointProbeResult> {
     return apiJson<CrosspointProbeResult>('/api/v1/crosspoint/probe', jsonBody('POST', payload), 'settings.reader.crosspoint.testFailed')
   }
@@ -81,7 +76,6 @@ export function useCrosspointDevices() {
     createDevice,
     updateDevice,
     deleteDevice,
-    discover,
     probeAddress,
     probeDevice,
   }

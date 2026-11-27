@@ -142,7 +142,7 @@ Take your library anywhere with the official native BookOrbit app. Read ebooks, 
 - **Request from the bookshop**: On iPhone, scan a book's barcode to request it, and approvers can approve and pick the download from their phone.
 - **An audiobook player built for long listens**: On iPhone, an Up Next queue, a sleep timer that stops at the end of a chapter, speeds up to 4x, CarPlay, and offline listening on Apple Watch.
 - **Your Kobo store books too**: Books bought from the Kobo store and Kobo Plus titles arrive on the device alongside your BookOrbit library.
-- **Sync EPUBs to a CrossPoint reader**: Add a reader by IP or network scan and push the collections you choose over Wi-Fi. See [docs/CROSSPOINT_SYNC.md](docs/CROSSPOINT_SYNC.md).
+- **Sync EPUBs to a CrossPoint reader**: Add a reader by IP and push the books, libraries, or collections you choose over Wi-Fi. See [docs/CROSSPOINT_SYNC.md](docs/CROSSPOINT_SYNC.md).
 - **Your year, as a story**: Year in Review turns the year's reading into a story to share, in the mobile apps.
 
 **Running the server**

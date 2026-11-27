@@ -16,9 +16,9 @@ function makeDevice(overrides: Partial<CrosspointDeviceInfo> = {}): CrosspointDe
     deviceModel: 'X4',
     firmwareVersion: '1.0.0',
     rootFolder: '/BookOrbit',
-    fileNamingPattern: '<{authors:first} - >{title}',
+    fileNamingPattern: '{library}/<{authors:first}|Unknown Author>/<{series}/>{originalFilename}',
     removeMissing: false,
-    selection: { mode: 'all', collectionIds: [], smartScopeIds: [] },
+    selection: { mode: 'all', libraryIds: [], collectionIds: [], smartScopeIds: [] },
     lastSeenAt: '2026-01-01T00:00:00.000Z',
     lastSyncAt: null,
     createdAt: '2026-01-01T00:00:00.000Z',
@@ -73,6 +73,22 @@ describe('CrosspointDeviceCard', () => {
     const remove = wrapper.findAll('button').find((button) => button.attributes('title') === 'Remove reader')
     await remove!.trigger('click')
     expect(wrapper.emitted('remove')).toHaveLength(1)
+  })
+
+  it('summarises a library selection', () => {
+    const wrapper = mount(CrosspointDeviceCard, {
+      props: {
+        device: makeDevice({
+          selection: { mode: 'libraries', libraryIds: [1, 2], collectionIds: [], smartScopeIds: [] },
+        }),
+        status: null,
+        syncing: false,
+        previewing: false,
+      },
+      global: { plugins: [i18n] },
+    })
+
+    expect(wrapper.text()).toContain('2 selected libraries')
   })
 
   it('shows book progress and lets the run be cancelled', async () => {
