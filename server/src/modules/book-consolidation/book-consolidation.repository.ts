@@ -929,6 +929,7 @@ export class BookConsolidationRepository {
       sql`koreader_session_tombstones`,
       sql`email_send_log`,
       sql`file_write_log`,
+      sql`crosspoint_device_documents`,
     ]) {
       await tx.execute(sql`update ${table} set book_file_id = ${w} where book_file_id = ${l}`);
     }
