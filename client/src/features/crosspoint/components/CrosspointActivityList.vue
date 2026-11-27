@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { AlertTriangle, Ban, CheckCircle2, Clock, History, Loader2, RefreshCw, Tablet } from '@lucide/vue'
-import type { CrosspointDeviceInfo, CrosspointSyncRun, CrosspointSyncRunStatus } from '@bookorbit/types'
+import type { CrosspointDeviceInfo, CrosspointSyncRun } from '@bookorbit/types'
 
 import { Button } from '@/components/ui/button'
 import { formatDate } from '@/i18n/formatters'
@@ -42,21 +42,26 @@ function formatDuration(run: CrosspointSyncRun): string {
   return `${minutes}m ${seconds % 60}s`
 }
 
-function statusLabel(status: CrosspointSyncRunStatus): string {
-  return t(`settings.reader.crosspoint.activity.status.${status}`)
+function statusLabel(run: CrosspointSyncRun): string {
+  if (run.status === 'completed' && run.failed > 0) {
+    return t('settings.reader.crosspoint.activity.status.completedWithFailures')
+  }
+  return t(`settings.reader.crosspoint.activity.status.${run.status}`)
 }
 
-function statusClass(status: CrosspointSyncRunStatus): string {
-  if (status === 'failed') return 'border-destructive/30 bg-destructive/10 text-destructive'
-  if (status === 'cancelled' || status === 'interrupted') return 'border-border bg-muted/60 text-muted-foreground'
-  if (status === 'running') return 'border-primary/30 bg-primary/10 text-primary'
+function statusClass(run: CrosspointSyncRun): string {
+  if (run.status === 'failed' || (run.status === 'completed' && run.failed > 0)) {
+    return 'border-warning/30 bg-warning/10 text-warning'
+  }
+  if (run.status === 'cancelled' || run.status === 'interrupted') return 'border-border bg-muted/60 text-muted-foreground'
+  if (run.status === 'running') return 'border-primary/30 bg-primary/10 text-primary'
   return 'border-primary/30 bg-primary/10 text-primary'
 }
 
-function statusIcon(status: CrosspointSyncRunStatus) {
-  if (status === 'failed') return AlertTriangle
-  if (status === 'cancelled' || status === 'interrupted') return Ban
-  if (status === 'running') return Loader2
+function statusIcon(run: CrosspointSyncRun) {
+  if (run.status === 'failed' || (run.status === 'completed' && run.failed > 0)) return AlertTriangle
+  if (run.status === 'cancelled' || run.status === 'interrupted') return Ban
+  if (run.status === 'running') return Loader2
   return CheckCircle2
 }
 
@@ -116,10 +121,10 @@ function firstFailure(run: CrosspointSyncRun) {
             <div class="flex flex-wrap items-center gap-2">
               <span
                 class="inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider"
-                :class="statusClass(run.status)"
+                :class="statusClass(run)"
               >
-                <component :is="statusIcon(run.status)" :size="11" :class="{ 'animate-spin': run.status === 'running' }" aria-hidden="true" />
-                {{ statusLabel(run.status) }}
+                <component :is="statusIcon(run)" :size="11" :class="{ 'animate-spin': run.status === 'running' }" aria-hidden="true" />
+                {{ statusLabel(run) }}
               </span>
               <span class="text-xs text-muted-foreground">{{ formatWhen(run.startedAt) }}</span>
               <span class="text-xs text-muted-foreground">· {{ formatDuration(run) }}</span>

@@ -88,6 +88,11 @@ const probeResult = ref<CrosspointProbeResult | null>(null)
 const creating = ref(false)
 const createError = ref<string | null>(null)
 
+watch([newHost, newWsPort, newHttpPort], () => {
+  probeResult.value = null
+  createError.value = null
+})
+
 const editorOpen = ref(false)
 const editingDevice = ref<CrosspointDeviceInfo | null>(null)
 
@@ -205,6 +210,7 @@ function useDiscovered(device: CrosspointDiscoveredDevice): void {
   if (!newName.value.trim()) {
     newName.value = device.hostname ?? device.deviceModel ?? 'CrossPoint Reader'
   }
+  discoverError.value = null
   probeResult.value = null
   createError.value = null
 }

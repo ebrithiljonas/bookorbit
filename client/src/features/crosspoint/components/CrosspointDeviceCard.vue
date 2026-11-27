@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { AlertTriangle, Ban, BookOpen, Clock, Loader2, Pencil, RefreshCw, Tablet, Trash2, Wifi } from '@lucide/vue'
-import type { CrosspointDeviceInfo, CrosspointSyncRunStatus, CrosspointSyncStatus } from '@bookorbit/types'
+import type { CrosspointDeviceInfo, CrosspointSyncStatus } from '@bookorbit/types'
 
 import { Button } from '@/components/ui/button'
 import { formatDate } from '@/i18n/formatters'
@@ -52,12 +52,17 @@ const selectionSummary = computed(() => {
 const statusLabel = computed(() => {
   const value = runStatus.value
   if (!value) return null
+  if (value === 'completed' && (run.value?.failed ?? 0) > 0) {
+    return t('settings.reader.crosspoint.activity.status.completedWithFailures')
+  }
   return t(`settings.reader.crosspoint.activity.status.${value}`)
 })
 
 const statusClass = computed(() => {
   const value = runStatus.value
-  if (value === 'failed') return 'border-destructive/30 bg-destructive/10 text-destructive'
+  if (value === 'failed' || (value === 'completed' && (run.value?.failed ?? 0) > 0)) {
+    return 'border-warning/30 bg-warning/10 text-warning'
+  }
   if (value === 'cancelled' || value === 'interrupted') return 'border-border bg-muted/60 text-muted-foreground'
   if (value === 'running') return 'border-primary/30 bg-primary/10 text-primary'
   return 'border-primary/30 bg-primary/10 text-primary'
@@ -83,12 +88,13 @@ function requestRemove(): void {
   emit('remove')
 }
 
-function statusIcon(status: CrosspointSyncRunStatus | null) {
-  if (status === 'failed') return AlertTriangle
-  if (status === 'cancelled' || status === 'interrupted') return Ban
-  if (status === 'running') return Loader2
+const statusIcon = computed(() => {
+  const value = runStatus.value
+  if (value === 'failed' || (value === 'completed' && (run.value?.failed ?? 0) > 0)) return AlertTriangle
+  if (value === 'cancelled' || value === 'interrupted') return Ban
+  if (value === 'running') return Loader2
   return RefreshCw
-}
+})
 </script>
 
 <template>
@@ -106,7 +112,7 @@ function statusIcon(status: CrosspointSyncRunStatus | null) {
             class="inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider"
             :class="statusClass"
           >
-            <component :is="statusIcon(runStatus)" :size="11" :class="{ 'animate-spin': runStatus === 'running' }" aria-hidden="true" />
+            <component :is="statusIcon" :size="11" :class="{ 'animate-spin': runStatus === 'running' }" aria-hidden="true" />
             {{ statusLabel }}
           </span>
         </div>

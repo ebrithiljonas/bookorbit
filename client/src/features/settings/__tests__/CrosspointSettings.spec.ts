@@ -1,34 +1,41 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
-import type { CrosspointDeviceInfo, CrosspointSyncRun } from '@bookorbit/types'
+import type {
+  CrosspointDeviceInfo,
+  CrosspointDiscoveredDevice,
+  CrosspointProbeResult,
+  CrosspointSyncPreview,
+  CrosspointSyncRun,
+  CrosspointSyncStatus,
+} from '@bookorbit/types'
 
 import { i18n } from '@/i18n'
 
 const route = { query: { tab: 'devices' as string } }
-const routerReplace = vi.fn()
+const routerReplace = vi.fn<() => Promise<void>>()
 const devices = ref<CrosspointDeviceInfo[]>([])
 const statusByDevice = ref<Record<number, unknown>>({})
 const runs = ref<CrosspointSyncRun[]>([])
 
 const fetchDevices = vi.fn<() => Promise<void>>()
-const createDevice = vi.fn()
-const deleteDevice = vi.fn()
-const discover = vi.fn()
-const probeAddress = vi.fn()
-const previewSync = vi.fn()
-const startSync = vi.fn()
-const fetchStatus = vi.fn()
-const cancelSync = vi.fn()
+const createDevice = vi.fn<(payload: unknown) => Promise<CrosspointDeviceInfo>>()
+const deleteDevice = vi.fn<(id: number) => Promise<void>>()
+const discover = vi.fn<() => Promise<CrosspointDiscoveredDevice[]>>()
+const probeAddress = vi.fn<(payload: unknown) => Promise<CrosspointProbeResult>>()
+const previewSync = vi.fn<(deviceId: number) => Promise<CrosspointSyncPreview>>()
+const startSync = vi.fn<(deviceId: number) => Promise<number>>()
+const fetchStatus = vi.fn<(deviceId: number) => Promise<CrosspointSyncStatus>>()
+const cancelSync = vi.fn<(deviceId: number) => Promise<void>>()
 const fetchRuns = vi.fn<() => Promise<CrosspointSyncRun[]>>()
-const clearRuns = vi.fn()
-const fetchCollections = vi.fn()
-const fetchSmartScopes = vi.fn()
+const clearRuns = vi.fn<() => void>()
+const fetchCollections = vi.fn<() => Promise<void>>()
+const fetchSmartScopes = vi.fn<() => Promise<void>>()
 const { toastSuccess, toastError, toastInfo, toastWarning } = vi.hoisted(() => ({
-  toastSuccess: vi.fn(),
-  toastError: vi.fn(),
-  toastInfo: vi.fn(),
-  toastWarning: vi.fn(),
+  toastSuccess: vi.fn<(...args: unknown[]) => void>(),
+  toastError: vi.fn<(...args: unknown[]) => void>(),
+  toastInfo: vi.fn<(...args: unknown[]) => void>(),
+  toastWarning: vi.fn<(...args: unknown[]) => void>(),
 }))
 
 vi.mock('vue-router', () => ({

@@ -4039,6 +4039,7 @@
           "status": {
             "running": "Running",
             "completed": "Completed",
+            "completedWithFailures": "Completed with failures",
             "failed": "Failed",
             "cancelled": "Cancelled",
             "interrupted": "Interrupted"
