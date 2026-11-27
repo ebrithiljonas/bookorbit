@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { CrosspointSelection } from '@bookorbit/types';
-import { and, asc, eq, inArray, or } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNotNull, or } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 
 import { DB } from '../../db/db.module';
@@ -14,6 +14,13 @@ export interface DeviceSelectionRows {
   libraryIdsByDevice: Map<number, number[]>;
   collectionIdsByDevice: Map<number, number[]>;
   smartScopeIdsByDevice: Map<number, number[]>;
+}
+
+export interface CrosspointBookFile {
+  id: number;
+  bookId: number;
+  libraryId: number;
+  format: string | null;
 }
 
 @Injectable()
@@ -32,6 +39,115 @@ export class CrosspointRepository {
     return this.db.query.crosspointDevices.findFirst({
       where: and(eq(schema.crosspointDevices.id, deviceId), eq(schema.crosspointDevices.userId, userId)),
     });
+  }
+
+  async findDeviceBySyncToken(syncToken: string) {
+    return this.db.query.crosspointDevices.findFirst({
+      where: eq(schema.crosspointDevices.syncToken, syncToken),
+    });
+  }
+
+  async findDeviceDocument(
+    userId: number,
+    deviceId: number,
+    documentHash: string,
+    accessibleLibraryIds: number[] | null,
+  ): Promise<CrosspointBookFile | null> {
+    if (accessibleLibraryIds !== null && accessibleLibraryIds.length === 0) return null;
+    const [row] = await this.db
+      .select({
+        id: schema.bookFiles.id,
+        bookId: schema.bookFiles.bookId,
+        libraryId: schema.books.libraryId,
+        format: schema.bookFiles.format,
+      })
+      .from(schema.crosspointDeviceDocuments)
+      .innerJoin(schema.bookFiles, eq(schema.bookFiles.id, schema.crosspointDeviceDocuments.bookFileId))
+      .innerJoin(schema.books, eq(schema.books.id, schema.bookFiles.bookId))
+      .where(
+        and(
+          eq(schema.crosspointDeviceDocuments.userId, userId),
+          eq(schema.crosspointDeviceDocuments.deviceId, deviceId),
+          eq(schema.crosspointDeviceDocuments.documentHash, documentHash),
+          accessibleLibraryIds ? inArray(schema.books.libraryId, accessibleLibraryIds) : undefined,
+        ),
+      )
+      .limit(1);
+    return row ?? null;
+  }
+
+  async upsertDeviceDocument(values: { userId: number; deviceId: number; documentHash: string; bookFileId: number }): Promise<void> {
+    await this.db
+      .insert(schema.crosspointDeviceDocuments)
+      .values(values)
+      .onConflictDoUpdate({
+        target: [schema.crosspointDeviceDocuments.deviceId, schema.crosspointDeviceDocuments.documentHash],
+        set: { bookFileId: values.bookFileId, updatedAt: new Date() },
+      });
+  }
+
+  async findAccessibleBookFileById(userId: number, bookFileId: number, accessibleLibraryIds: number[] | null): Promise<CrosspointBookFile | null> {
+    if (accessibleLibraryIds !== null && accessibleLibraryIds.length === 0) return null;
+    const [row] = await this.db
+      .select({
+        id: schema.bookFiles.id,
+        bookId: schema.bookFiles.bookId,
+        libraryId: schema.books.libraryId,
+        format: schema.bookFiles.format,
+      })
+      .from(schema.bookFiles)
+      .innerJoin(schema.books, eq(schema.books.id, schema.bookFiles.bookId))
+      .where(and(eq(schema.bookFiles.id, bookFileId), accessibleLibraryIds ? inArray(schema.books.libraryId, accessibleLibraryIds) : undefined))
+      .limit(1);
+    return row ?? null;
+  }
+
+  async findLedgerBookFileByRemoteFilenameHash(
+    userId: number,
+    deviceId: number,
+    remoteFilenameHash: string,
+    accessibleLibraryIds: number[] | null,
+  ): Promise<CrosspointBookFile | null> {
+    return this.findLedgerBookFile(userId, deviceId, accessibleLibraryIds, eq(schema.crosspointDeviceBooks.remoteFilenameHash, remoteFilenameHash));
+  }
+
+  async findLedgerBookFileByFileHash(
+    userId: number,
+    deviceId: number,
+    fileHash: string,
+    accessibleLibraryIds: number[] | null,
+  ): Promise<CrosspointBookFile | null> {
+    return this.findLedgerBookFile(userId, deviceId, accessibleLibraryIds, eq(schema.crosspointDeviceBooks.fileHash, fileHash));
+  }
+
+  private async findLedgerBookFile(
+    userId: number,
+    deviceId: number,
+    accessibleLibraryIds: number[] | null,
+    hashCondition: ReturnType<typeof eq>,
+  ): Promise<CrosspointBookFile | null> {
+    if (accessibleLibraryIds !== null && accessibleLibraryIds.length === 0) return null;
+    const [row] = await this.db
+      .select({
+        id: schema.bookFiles.id,
+        bookId: schema.bookFiles.bookId,
+        libraryId: schema.books.libraryId,
+        format: schema.bookFiles.format,
+      })
+      .from(schema.crosspointDeviceBooks)
+      .innerJoin(schema.bookFiles, eq(schema.bookFiles.id, schema.crosspointDeviceBooks.fileId))
+      .innerJoin(schema.books, eq(schema.books.id, schema.bookFiles.bookId))
+      .where(
+        and(
+          eq(schema.crosspointDeviceBooks.userId, userId),
+          eq(schema.crosspointDeviceBooks.deviceId, deviceId),
+          isNotNull(schema.crosspointDeviceBooks.fileId),
+          hashCondition,
+          accessibleLibraryIds ? inArray(schema.books.libraryId, accessibleLibraryIds) : undefined,
+        ),
+      )
+      .limit(1);
+    return row ?? null;
   }
 
   async findDeviceByStableId(userId: number, stableDeviceId: string) {

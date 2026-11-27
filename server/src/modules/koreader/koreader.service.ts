@@ -5,6 +5,7 @@ import { createHash } from 'crypto';
 
 import {
   DEFAULT_KOREADER_DEVICE_PATTERN,
+  type CrosspointRichPosition,
   type ReadAloudDeliveryPreference,
   type KoreaderBookSyncInfo,
   type KoreaderDeviceInfo,
@@ -241,7 +242,14 @@ export class KoreaderService {
   async applyProgressForResolvedFile(
     userId: number,
     bookFile: KoreaderProgressBookFile,
-    data: { percentage: number; progress?: string; device: string; deviceId: string; timestamp?: number },
+    data: {
+      percentage: number;
+      progress?: string;
+      device: string;
+      deviceId: string;
+      timestamp?: number;
+      position?: CrosspointRichPosition | null;
+    },
     options?: { skipSharedProgress?: boolean; timeZone?: string },
   ): Promise<KoreaderProgressApplyResult> {
     data = {
@@ -276,6 +284,7 @@ export class KoreaderService {
       deviceId: data.deviceId,
       percentage: data.percentage,
       progress: data.progress ?? null,
+      position: data.position ?? null,
       chapterIndex,
       syncTimestamp: data.timestamp ?? null,
     });
@@ -561,7 +570,10 @@ export class KoreaderService {
     const bookFile = await this.repo.resolveBookFileByHash(documentHash, accessibleLibraryIds, userId);
 
     if (!bookFile) return null;
+    return this.getProgressForBookFile(userId, bookFile, documentHash);
+  }
 
+  async getProgressForBookFile(userId: number, bookFile: KoreaderProgressBookFile, documentHash: string) {
     // An outstanding reset is answered before anything stored, and answered with a position
     // rather than with silence. An empty body reads as "this server knows nothing about your
     // book", which is the one reply that leaves the device certain its own position is the
@@ -609,6 +621,7 @@ export class KoreaderService {
         progress: bookFile.progressCompatible === false ? null : (latestDevice.progress ?? ''),
         device: latestDevice.device,
         device_id: latestDevice.deviceId,
+        ...(latestDevice.position ? { position: latestDevice.position } : {}),
         // An addition to the kosync reply, read by the BookOrbit plugin only. `device` stays the
         // reported model, because that is what a device recognises its own pushes by.
         ...(deviceName ? { device_name: deviceName } : {}),

@@ -54,6 +54,17 @@ export class CrosspointDeviceController {
     return this.devices.deleteDevice(user.id, id);
   }
 
+  @Post('devices/:id/sync-token')
+  @Auditable({
+    action: AuditAction.CrosspointDeviceUpdate,
+    resource: AuditResource.CrosspointDevice,
+    getResourceId: (req) => parseInt(req.params['id'], 10),
+    description: (req) => `Regenerated the sync endpoint for CrossPoint reader #${req.params['id']}`,
+  })
+  rotateSyncToken(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: RequestUser) {
+    return this.devices.rotateSyncToken(user.id, id);
+  }
+
   @Post('probe')
   probe(@Body() dto: ProbeCrosspointDeviceDto) {
     return this.devices.probeAddress(dto);

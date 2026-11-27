@@ -45,6 +45,7 @@ export class BookmarkSyncService {
       pageno: fields.pageno,
       bookFileId: fields.bookFileId,
       ...(fields.note !== undefined ? { note: fields.note } : {}),
+      ...(fields.positionPercent !== undefined ? { positionPercent: fields.positionPercent } : {}),
     });
     if (restored) return { row: restored, outcome: 'restored' };
 
@@ -58,6 +59,7 @@ export class BookmarkSyncService {
     const patch = {
       ...(!opts.keepTitle && existing.title !== fields.title ? { title: fields.title } : {}),
       ...(fields.note != null && existing.note !== fields.note ? { note: fields.note } : {}),
+      ...(fields.positionPercent != null && existing.positionPercent !== fields.positionPercent ? { positionPercent: fields.positionPercent } : {}),
     };
     if (Object.keys(patch).length > 0) {
       const updated = await this.bookmarkRepo.updateFromDevice(userId, existing.id, patch);
@@ -75,7 +77,11 @@ export class BookmarkSyncService {
    * Device-side rename. Callers apply it only once the device has acknowledged the current server
    * version, so a rename made elsewhere and still on its way down is not undone by a stale title.
    */
-  applyDeviceEdit(userId: number, bookmarkId: number, values: { title?: string; devicePos?: string; pageno?: number | null }) {
+  applyDeviceEdit(
+    userId: number,
+    bookmarkId: number,
+    values: { title?: string; devicePos?: string; pageno?: number | null; positionPercent?: number | null },
+  ) {
     return this.bookmarkRepo.updateFromDevice(userId, bookmarkId, values);
   }
 

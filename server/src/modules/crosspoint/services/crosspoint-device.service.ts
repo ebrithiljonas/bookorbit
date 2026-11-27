@@ -1,10 +1,12 @@
 import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { randomBytes } from 'crypto';
 import {
   CROSSPOINT_DEFAULT_FILE_NAMING_PATTERN,
   CROSSPOINT_DEFAULT_HTTP_PORT,
   CROSSPOINT_DEFAULT_ROOT_FOLDER,
   CROSSPOINT_DEFAULT_WS_PORT,
   type CrosspointDeviceInfo,
+  type CrosspointDeviceSetup,
   type CrosspointProbeResult,
   type CrosspointSelection,
 } from '@bookorbit/types';
@@ -54,7 +56,7 @@ export class CrosspointDeviceService {
     return devices.map((device) => this.toInfo(device, this.selectionFor(device, selections)));
   }
 
-  async createDevice(userId: number, dto: CreateCrosspointDeviceDto): Promise<CrosspointDeviceInfo> {
+  async createDevice(userId: number, dto: CreateCrosspointDeviceDto): Promise<CrosspointDeviceSetup> {
     const startedAt = Date.now();
     const name = dto.name.trim();
     if (!name) throw new BadRequestException('Reader name is required');
@@ -87,6 +89,7 @@ export class CrosspointDeviceService {
           firmwareVersion: probe.firmwareVersion,
           rootFolder,
           fileNamingPattern,
+          syncToken: this.newSyncToken(),
           selectionMode: selection.mode,
           removeMissing: dto.removeMissing ?? false,
           lastSeenAt: new Date(),
@@ -97,7 +100,7 @@ export class CrosspointDeviceService {
       this.logger.log(
         `[crosspoint.device.create] [end] userId=${userId} deviceId=${device.id} durationMs=${Date.now() - startedAt} model=${device.deviceModel ?? 'unknown'} - reader registration completed`,
       );
-      return this.toInfo(device, selection);
+      return this.toSetup(device, selection);
     } catch (error) {
       if (error instanceof ConflictException) throw error;
       if (isUniqueViolation(error)) throw new ConflictException('This reader is already added');
@@ -185,6 +188,16 @@ export class CrosspointDeviceService {
   async deleteDevice(userId: number, deviceId: number): Promise<void> {
     const deleted = await this.repository.deleteDevice(userId, deviceId);
     if (!deleted) throw new NotFoundException('Reader not found');
+  }
+
+  async rotateSyncToken(userId: number, deviceId: number): Promise<{ syncToken: string }> {
+    const device = await this.repository.updateDeviceFields(userId, deviceId, { syncToken: this.newSyncToken() });
+    if (!device) throw new NotFoundException('Reader not found');
+    return { syncToken: device.syncToken };
+  }
+
+  private newSyncToken(): string {
+    return randomBytes(16).toString('hex');
   }
 
   async probeDevice(userId: number, deviceId: number): Promise<CrosspointProbeResult> {
@@ -290,6 +303,10 @@ export class CrosspointDeviceService {
       collectionIds: selections.collectionIdsByDevice.get(device.id) ?? [],
       smartScopeIds: selections.smartScopeIdsByDevice.get(device.id) ?? [],
     };
+  }
+
+  private toSetup(device: CrosspointDeviceRow, selection: CrosspointSelection): CrosspointDeviceSetup {
+    return { ...this.toInfo(device, selection), syncToken: device.syncToken };
   }
 
   private toInfo(device: CrosspointDeviceRow, selection: CrosspointSelection): CrosspointDeviceInfo {

@@ -19,6 +19,7 @@ function makeDevice(overrides: Partial<CrosspointDeviceRow> = {}): CrosspointDev
     firmwareVersion: '1.0.0',
     rootFolder: '/BookOrbit',
     fileNamingPattern: '{library}/<{authors:first}|Unknown Author>/<{series}/>{originalFilename}',
+    syncToken: 'b'.repeat(32),
     selectionMode: 'all',
     removeMissing: false,
     lastSeenAt: NOW,
@@ -120,12 +121,18 @@ describe('CrosspointDeviceService', () => {
         deviceModel: 'X4',
         firmwareVersion: '1.0.0',
         rootFolder: '/BookOrbit',
+        syncToken: expect.stringMatching(/^[0-9a-f]{32}$/),
         selectionMode: 'selected',
         removeMissing: true,
       }),
       { mode: 'selected', libraryIds: [], collectionIds: [3], smartScopeIds: [4] },
     );
-    expect(device).toMatchObject({ id: 1, name: 'Bedroom reader', selection: { mode: 'selected' } });
+    expect(device).toMatchObject({
+      id: 1,
+      name: 'Bedroom reader',
+      syncToken: expect.stringMatching(/^[0-9a-f]{32}$/),
+      selection: { mode: 'selected' },
+    });
   });
 
   it('registers a reader limited to selected libraries', async () => {
@@ -213,6 +220,17 @@ describe('CrosspointDeviceService', () => {
 
     await expect(service.updateDevice(7, 99, { name: 'Gone' })).rejects.toThrow(NotFoundException);
     await expect(service.deleteDevice(7, 99)).rejects.toThrow(NotFoundException);
+  });
+
+  it('rotates the sync token and refuses a missing reader', async () => {
+    repository.updateDeviceFields.mockResolvedValueOnce(makeDevice({ syncToken: 'c'.repeat(32) })).mockResolvedValueOnce(undefined);
+
+    await expect(service.rotateSyncToken(7, 1)).resolves.toEqual({ syncToken: 'c'.repeat(32) });
+    expect(repository.updateDeviceFields).toHaveBeenCalledWith(7, 1, {
+      syncToken: expect.stringMatching(/^[0-9a-f]{32}$/),
+    });
+
+    await expect(service.rotateSyncToken(7, 99)).rejects.toThrow(NotFoundException);
   });
 
   it('records the probe when an existing reader answers', async () => {

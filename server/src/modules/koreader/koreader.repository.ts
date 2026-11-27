@@ -2,7 +2,7 @@ import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { and, asc, desc, eq, inArray, lte, notExists, or, sql, type SQL, type SQLWrapper } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 
-import type { ContentFilterRules, ReadAloudDeliveryPreference } from '@bookorbit/types';
+import type { ContentFilterRules, CrosspointRichPosition, ReadAloudDeliveryPreference } from '@bookorbit/types';
 import { chunk } from '../../common/utils/batch.utils';
 import { buildContentFilterClauses } from '../../common/utils/content-filter-sql.utils';
 import { DB } from '../../db';
@@ -94,6 +94,7 @@ export interface DeviceProgressUpsert {
   deviceId: string;
   percentage: number;
   progress: string | null;
+  position?: CrosspointRichPosition | null;
   chapterIndex: number | null;
   syncTimestamp: number | null;
 }
@@ -242,6 +243,23 @@ export class KoreaderRepository {
     return resolved?.progressCompatible === true
       ? { id: resolved.id, bookId: resolved.bookId, libraryId: resolved.libraryId, format: resolved.format }
       : resolved;
+  }
+
+  async findBookFileById(bookFileId: number, accessibleLibraryIds: number[] | null): Promise<ResolvedBookFileByHash | null> {
+    if (accessibleLibraryIds !== null && accessibleLibraryIds.length === 0) return null;
+    const libraryFilter = accessibleLibraryIds ? inArray(schema.books.libraryId, accessibleLibraryIds) : undefined;
+    const [row] = await this.db
+      .select({
+        id: schema.bookFiles.id,
+        bookId: schema.bookFiles.bookId,
+        libraryId: schema.books.libraryId,
+        format: schema.bookFiles.format,
+      })
+      .from(schema.bookFiles)
+      .innerJoin(schema.books, eq(schema.books.id, schema.bookFiles.bookId))
+      .where(and(eq(schema.bookFiles.id, bookFileId), libraryFilter))
+      .limit(1);
+    return row ?? null;
   }
 
   async resolveBookFilesByHashes(
@@ -690,6 +708,7 @@ export class KoreaderRepository {
     deviceId: string;
     percentage: number;
     progress: string | null;
+    position?: CrosspointRichPosition | null;
     chapterIndex: number | null;
     syncTimestamp: number | null;
   }) {
@@ -702,6 +721,7 @@ export class KoreaderRepository {
         deviceId: data.deviceId,
         percentage: data.percentage,
         progress: data.progress,
+        position: data.position ?? null,
         chapterIndex: data.chapterIndex,
         syncTimestamp: data.syncTimestamp,
         orphaned: false,
@@ -718,6 +738,7 @@ export class KoreaderRepository {
         set: {
           percentage: data.percentage,
           progress: data.progress,
+          position: data.position ?? null,
           chapterIndex: data.chapterIndex,
           syncTimestamp: data.syncTimestamp,
           updatedAt: new Date(),
@@ -741,6 +762,7 @@ export class KoreaderRepository {
             deviceId: entry.deviceId,
             percentage: entry.percentage,
             progress: entry.progress,
+            position: entry.position ?? null,
             chapterIndex: entry.chapterIndex,
             syncTimestamp: entry.syncTimestamp,
             orphaned: false,
@@ -759,6 +781,7 @@ export class KoreaderRepository {
           set: {
             percentage: sql`excluded.percentage`,
             progress: sql`excluded.progress`,
+            position: sql`excluded.position`,
             chapterIndex: sql`excluded.chapter_index`,
             syncTimestamp: sql`excluded.sync_timestamp`,
             updatedAt: sql`excluded.updated_at`,

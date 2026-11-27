@@ -15,6 +15,8 @@ export interface DeviceBookmarkFields {
   title: string;
   devicePos: string;
   pageno: number | null;
+  /** Whole-book percentage, 0..100, when the device reports one. */
+  positionPercent?: number | null;
   /** The device family the bookmark came from; KOReader when omitted. */
   origin?: BookmarkOrigin;
   /** Set only by devices that keep a note apart from the title (Kobo). */
@@ -90,7 +92,10 @@ export class BookmarkRepository {
     userId: number,
     bookId: number,
     data: Pick<NewBookmark, 'cfi' | 'positionSeconds'>,
-    values: Pick<NewBookmark, 'title' | 'origin' | 'devicePos' | 'pageno' | 'bookFileId'> & { note?: string | null },
+    values: Pick<NewBookmark, 'title' | 'origin' | 'devicePos' | 'pageno' | 'bookFileId'> & {
+      note?: string | null;
+      positionPercent?: number | null;
+    },
   ): Promise<BookmarkRow | null> {
     const location =
       data.cfi != null
@@ -109,6 +114,7 @@ export class BookmarkRepository {
         pageno: values.pageno ?? null,
         bookFileId: values.bookFileId ?? null,
         ...(values.note !== undefined ? { note: values.note } : {}),
+        ...(values.positionPercent !== undefined ? { positionPercent: values.positionPercent } : {}),
         deletedAt: null,
       })
       .where(and(eq(bookmarks.userId, userId), eq(bookmarks.bookId, bookId), location, isNotNull(bookmarks.deletedAt)))
@@ -214,6 +220,7 @@ export class BookmarkRepository {
         origin: fields.origin ?? 'koreader',
         devicePos: fields.devicePos,
         pageno: fields.pageno,
+        positionPercent: fields.positionPercent ?? null,
         bookFileId: fields.bookFileId ?? null,
         note: fields.note ?? null,
       })
@@ -241,7 +248,7 @@ export class BookmarkRepository {
   async updateFromDevice(
     userId: number,
     bookmarkId: number,
-    values: Partial<Pick<NewBookmark, 'title' | 'devicePos' | 'pageno' | 'note'>>,
+    values: Partial<Pick<NewBookmark, 'title' | 'devicePos' | 'pageno' | 'note' | 'positionPercent'>>,
   ): Promise<BookmarkRow | null> {
     const [row] = await this.db
       .update(bookmarks)
