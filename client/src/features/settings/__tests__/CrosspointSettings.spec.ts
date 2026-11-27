@@ -1,7 +1,14 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
-import type { CrosspointDeviceInfo, CrosspointProbeResult, CrosspointSyncPreview, CrosspointSyncRun, CrosspointSyncStatus } from '@bookorbit/types'
+import type {
+  CrosspointDeviceInfo,
+  CrosspointDeviceSetup,
+  CrosspointProbeResult,
+  CrosspointSyncPreview,
+  CrosspointSyncRun,
+  CrosspointSyncStatus,
+} from '@bookorbit/types'
 
 import { i18n } from '@/i18n'
 

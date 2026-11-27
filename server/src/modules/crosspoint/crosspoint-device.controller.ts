@@ -55,6 +55,7 @@ export class CrosspointDeviceController {
   }
 
   @Post('devices/:id/sync-token')
+  @HttpCode(HttpStatus.OK)
   @Auditable({
     action: AuditAction.CrosspointDeviceUpdate,
     resource: AuditResource.CrosspointDevice,

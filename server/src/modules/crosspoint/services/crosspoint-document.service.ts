@@ -36,34 +36,35 @@ export class CrosspointDocumentService {
   ): Promise<CrosspointResolvedDocument | null> {
     const startedAt = Date.now();
     const accessibleLibraryIds = await this.libraryScope.visibleIdsOrAllForUserId(userId);
+    const hash = document.toLowerCase();
 
     const sidecarFileId = this.parseFileId(metadata?.bookorbit_file_id);
     if (sidecarFileId !== null) {
       const file = await this.repository.findAccessibleBookFileById(userId, sidecarFileId, accessibleLibraryIds);
       if (file) {
-        await this.learn(userId, deviceId, document, file.id);
+        await this.learn(userId, deviceId, hash, file.id);
         return this.resolved(file);
       }
     }
 
-    const mapped = await this.repository.findDeviceDocument(userId, deviceId, document, accessibleLibraryIds);
+    const mapped = await this.repository.findDeviceDocument(userId, deviceId, hash, accessibleLibraryIds);
     if (mapped) return this.resolved(mapped);
 
-    const ledgerFilename = await this.repository.findLedgerBookFileByRemoteFilenameHash(userId, deviceId, document, accessibleLibraryIds);
+    const ledgerFilename = await this.repository.findLedgerBookFileByRemoteFilenameHash(userId, deviceId, hash, accessibleLibraryIds);
     if (ledgerFilename) {
-      await this.learn(userId, deviceId, document, ledgerFilename.id);
+      await this.learn(userId, deviceId, hash, ledgerFilename.id);
       return this.resolved(ledgerFilename);
     }
 
-    const ledgerBinary = await this.repository.findLedgerBookFileByFileHash(userId, deviceId, document, accessibleLibraryIds);
+    const ledgerBinary = await this.repository.findLedgerBookFileByFileHash(userId, deviceId, hash, accessibleLibraryIds);
     if (ledgerBinary) {
-      await this.learn(userId, deviceId, document, ledgerBinary.id);
+      await this.learn(userId, deviceId, hash, ledgerBinary.id);
       return this.resolved(ledgerBinary);
     }
 
-    const globalBinary = await this.koreaderRepository.resolveBookFileByHash(document, accessibleLibraryIds, userId);
+    const globalBinary = await this.koreaderRepository.resolveBookFileByHash(hash, accessibleLibraryIds, userId);
     if (globalBinary) {
-      await this.learn(userId, deviceId, document, globalBinary.id);
+      await this.learn(userId, deviceId, hash, globalBinary.id);
       return this.resolved(globalBinary);
     }
 
