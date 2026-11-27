@@ -217,9 +217,14 @@ export class CrosspointSyncRunner implements OnModuleInit {
         for (const row of stale) {
           if (signal.aborted) throw new CrosspointAbortError('Sync cancelled');
           try {
-            if (remoteFilesByPath.has(row.remotePath)) {
-              await this.client.deletePaths(device.host, device.httpPort, [row.remotePath]);
-              remoteFilesByPath.delete(row.remotePath);
+            const paths = [row.remotePath, this.sidecarPath(row.remotePath)];
+            if (paths.some((path) => remoteFilesByPath.has(path))) {
+              await this.client.deletePaths(
+                device.host,
+                device.httpPort,
+                paths.filter((path) => remoteFilesByPath.has(path)),
+              );
+              for (const path of paths) remoteFilesByPath.delete(path);
             }
             await this.repository.deleteLedgerBook(userId, row.id);
             counters.deleted += 1;
@@ -360,6 +365,7 @@ export class CrosspointSyncRunner implements OnModuleInit {
 
     if (plan.action === 'skip') {
       await this.recordSeen(userId, device.id, runId, ledger, ledgerByBookId, book, plan.remotePath);
+      await this.ensureSidecar(device, book, plan.remotePath, remoteFilesByPath, ensuredDirectories, signal);
       counters.skipped += 1;
       return;
     }
@@ -370,6 +376,7 @@ export class CrosspointSyncRunner implements OnModuleInit {
         fileHash,
         fileSize,
       });
+      await this.ensureSidecar(device, book, plan.remotePath, remoteFilesByPath, ensuredDirectories, signal);
       counters.skipped += 1;
       return;
     }
@@ -391,8 +398,11 @@ export class CrosspointSyncRunner implements OnModuleInit {
 
       if (plan.previousPath) {
         try {
-          await this.client.deletePaths(device.host, device.httpPort, [plan.previousPath]);
+          const oldSidecar = this.sidecarPath(plan.previousPath);
+          const oldPaths = [plan.previousPath, oldSidecar].filter((path) => remoteFilesByPath.has(path));
+          if (oldPaths.length > 0) await this.client.deletePaths(device.host, device.httpPort, oldPaths);
           remoteFilesByPath.delete(plan.previousPath);
+          remoteFilesByPath.delete(oldSidecar);
           deletedPaths.push(plan.previousPath);
         } catch (error) {
           const err = error instanceof Error ? error : new Error(String(error));
@@ -407,6 +417,7 @@ export class CrosspointSyncRunner implements OnModuleInit {
         fileHash,
         fileSize,
       });
+      await this.ensureSidecar(device, book, plan.remotePath, remoteFilesByPath, ensuredDirectories, signal);
       remoteFilesByPath.set(plan.remotePath, {
         path: plan.remotePath,
         name: deviceBasename(plan.remotePath),
@@ -442,6 +453,57 @@ export class CrosspointSyncRunner implements OnModuleInit {
       counters.failed += 1;
     } finally {
       this.clearCurrent(device.id, runId);
+    }
+  }
+
+  private sidecarPath(remotePath: string): string {
+    return `${remotePath}.meta.json`;
+  }
+
+  private async ensureSidecar(
+    device: CrosspointDeviceRow,
+    book: CrosspointSyncBook,
+    remotePath: string,
+    remoteFilesByPath: Map<string, CrosspointFileEntry>,
+    ensuredDirectories: Set<string>,
+    signal: AbortSignal,
+  ): Promise<void> {
+    const sidecarPath = this.sidecarPath(remotePath);
+    if (remoteFilesByPath.has(sidecarPath)) return;
+
+    const contents = Buffer.from(JSON.stringify({ bookorbit_file_id: String(book.fileId), bookorbit_book_id: String(book.bookId) }), 'utf8');
+    const directory = deviceDirname(sidecarPath);
+    await this.ensureDirectory(device, directory, ensuredDirectories);
+
+    for (let attempt = 1; attempt <= UPLOAD_ATTEMPTS; attempt += 1) {
+      try {
+        await this.client.uploadFile({
+          host: device.host,
+          wsPort: device.wsPort,
+          directory,
+          filename: deviceBasename(sidecarPath),
+          contents,
+          signal,
+        });
+        remoteFilesByPath.set(sidecarPath, {
+          path: sidecarPath,
+          name: deviceBasename(sidecarPath),
+          size: contents.length,
+          isDirectory: false,
+          isEpub: false,
+        });
+        return;
+      } catch (error) {
+        if (signal.aborted || error instanceof CrosspointAbortError) throw new CrosspointAbortError('Sync cancelled');
+        if (attempt >= UPLOAD_ATTEMPTS) {
+          const err = error instanceof Error ? error : new Error(String(error));
+          this.logger.warn(
+            `[crosspoint.sync] [fail] deviceId=${device.id} path="${sanitizeLogValue(sidecarPath)}" errorClass=${err.name} error="${sanitizeLogValue(err.message)}" - sidecar metadata upload skipped`,
+          );
+          return;
+        }
+        await delay(RETRY_DELAY_MS);
+      }
     }
   }
 

@@ -34,7 +34,8 @@ interface UploadOptions {
   wsPort: number;
   directory: string;
   filename: string;
-  filePath: string;
+  filePath?: string;
+  contents?: Buffer;
   chunkSize?: number;
   signal?: AbortSignal;
   onProgress?: (progress: CrosspointUploadProgress) => void;
@@ -274,7 +275,10 @@ export class CrosspointClientService {
       throw new CrosspointError('Invalid upload filename');
     }
 
-    const { size: fileSize } = await stat(options.filePath);
+    if ((options.filePath === undefined) === (options.contents === undefined)) {
+      throw new CrosspointError('An upload needs either a file path or contents');
+    }
+    const fileSize = options.contents ? options.contents.length : (await stat(options.filePath!)).size;
     const socket = this.createSocket(crosspointWebSocketUrl(options.host, options.wsPort));
     socket.binaryType = 'arraybuffer';
 
@@ -388,18 +392,31 @@ export class CrosspointClientService {
       }
 
       let sent = 0;
-      const stream = createReadStream(options.filePath, { highWaterMark: options.chunkSize ?? DEFAULT_CHUNK_SIZE });
-      try {
-        for await (const chunk of stream) {
+      const chunkSize = options.chunkSize ?? DEFAULT_CHUNK_SIZE;
+      if (options.contents) {
+        for (let offset = 0; offset < options.contents.length; offset += chunkSize) {
           if (aborted || options.signal?.aborted) throw new CrosspointAbortError('Sync cancelled');
           if (closed) throw new CrosspointSocketClosedError(closeReason || 'Upload connection closed');
-          socket.send(chunk as Buffer);
+          const chunk = options.contents.subarray(offset, offset + chunkSize);
+          socket.send(chunk);
           sent += chunk.length;
           this.reportProgress(options.onProgress, { sent, total: fileSize });
           await this.waitForDrain(socket, options.signal);
         }
-      } finally {
-        stream.destroy();
+      } else {
+        const stream = createReadStream(options.filePath!, { highWaterMark: chunkSize });
+        try {
+          for await (const chunk of stream) {
+            if (aborted || options.signal?.aborted) throw new CrosspointAbortError('Sync cancelled');
+            if (closed) throw new CrosspointSocketClosedError(closeReason || 'Upload connection closed');
+            socket.send(chunk as Buffer);
+            sent += chunk.length;
+            this.reportProgress(options.onProgress, { sent, total: fileSize });
+            await this.waitForDrain(socket, options.signal);
+          }
+        } finally {
+          stream.destroy();
+        }
       }
 
       if (aborted || options.signal?.aborted) throw new CrosspointAbortError('Sync cancelled');

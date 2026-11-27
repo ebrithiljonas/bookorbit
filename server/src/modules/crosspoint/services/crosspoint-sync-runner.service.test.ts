@@ -26,6 +26,7 @@ function makeDevice(overrides: Partial<CrosspointDeviceRow> = {}): CrosspointDev
     firmwareVersion: '1.0.0',
     rootFolder: '/BookOrbit',
     fileNamingPattern: '{library}/<{authors:first}|Unknown Author>/<{series}/>{originalFilename}',
+    syncToken: 'b'.repeat(32),
     selectionMode: 'all',
     removeMissing: true,
     lastSeenAt: NOW,
@@ -73,6 +74,7 @@ function makeLedger(overrides: Partial<CrosspointDeviceBookRow> = {}): Crosspoin
     bookId: 123,
     fileId: 5,
     remotePath: '/BookOrbit/Books/Frank Herbert/dune.epub',
+    remoteFilenameHash: 'c'.repeat(32),
     fileHash: HASH,
     fileSize: 11,
     lastSeenRunId: 0,
@@ -193,6 +195,13 @@ describe('CrosspointSyncRunner', () => {
         filePath,
       }),
     );
+    expect(client.uploadFile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        directory: '/BookOrbit/Books/Frank Herbert',
+        filename: 'dune.epub.meta.json',
+        contents: expect.any(Buffer),
+      }),
+    );
     expect(repository.insertLedgerBook).toHaveBeenCalledWith(
       expect.objectContaining({
         bookId: 123,
@@ -211,7 +220,10 @@ describe('CrosspointSyncRunner', () => {
     await writeFile(filePath, 'hello world');
     const book = makeBook({ filePath, fileSize: 11 });
     repository.listLedger.mockResolvedValue([makeLedger()]);
-    client.listFilesRecursive.mockResolvedValue([remoteFile('/BookOrbit/Books/Frank Herbert/dune.epub', 11)]);
+    client.listFilesRecursive.mockResolvedValue([
+      remoteFile('/BookOrbit/Books/Frank Herbert/dune.epub', 11),
+      remoteFile('/BookOrbit/Books/Frank Herbert/dune.epub.meta.json', 60),
+    ]);
     selection.page.mockResolvedValueOnce([book]);
 
     await run();
@@ -239,12 +251,21 @@ describe('CrosspointSyncRunner', () => {
     const secondPath = join(tempDirectory, 'second.epub');
     await writeFile(secondPath, 'second');
     const first = makeBook({ bookId: 1, title: 'First', fileId: 1, filePath: firstPath, fileSize: 5, fileHash: 'b'.repeat(32) });
-    const second = makeBook({ bookId: 2, title: 'Second', fileId: 2, filePath: secondPath, fileSize: 6, fileHash: 'c'.repeat(32) });
+    const second = makeBook({
+      bookId: 2,
+      title: 'Second',
+      fileId: 2,
+      filePath: secondPath,
+      fileSize: 6,
+      fileHash: 'c'.repeat(32),
+      originalStem: 'second',
+    });
     selection.page.mockResolvedValueOnce([first, second]);
 
     await run();
 
-    expect(client.uploadFile).toHaveBeenCalledTimes(1);
+    expect(client.uploadFile).toHaveBeenCalledTimes(2);
+    expect(client.uploadFile).toHaveBeenCalledWith(expect.objectContaining({ filename: 'second.epub' }));
     expect(repository.updateRun).toHaveBeenLastCalledWith(7, 1, expect.objectContaining({ status: 'completed', uploaded: 1, failed: 1 }));
   });
 
