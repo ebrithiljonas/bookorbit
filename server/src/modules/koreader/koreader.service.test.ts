@@ -560,6 +560,7 @@ describe('KoreaderService', () => {
         deviceId: 'device-12',
         percentage: 0.5,
         progress: '/body/DocFragment[7]',
+        position: null,
         chapterIndex: 6,
         syncTimestamp: 1700000000,
       });

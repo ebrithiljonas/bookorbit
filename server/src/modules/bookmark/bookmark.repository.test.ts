@@ -308,6 +308,7 @@ describe('BookmarkRepository', () => {
         origin: 'koreader',
         devicePos: '/body/DocFragment[2]/body/p[3]/text().0',
         pageno: 12,
+        positionPercent: null,
         note: null,
       });
       expect(result).toEqual(row);
