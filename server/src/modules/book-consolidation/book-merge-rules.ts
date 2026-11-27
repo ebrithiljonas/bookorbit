@@ -49,6 +49,7 @@ export const BOOK_MERGE_RULES: Readonly<Record<string, BookMergeRuleKind>> = {
   'story_edits.book_id': 'reconcile',
   'user_book_read_aloud_sync_settings.book_id': 'fill',
   'collection_books.book_id': 'repoint',
+  'crosspoint_device_books.book_id': 'repoint',
 
   'kobo_book_entitlements.book_id': 'follow-entitlement',
   'kobo_reading_states.book_id': 'follow-entitlement',
@@ -97,4 +98,5 @@ export const BOOK_MERGE_SET_NULL_COLUMNS = [
   'book_dock_kept_files.book_id',
   'reading_attempts.book_id',
   'book_link_groups.lead_book_id',
+  'crosspoint_device_books.book_id',
 ] as const;

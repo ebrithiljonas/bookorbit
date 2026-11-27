@@ -695,6 +695,28 @@ export class BookConsolidationRepository {
     await tx.execute(sql`update upload_sessions set result_book_id = ${k}, updated_at = now() where result_book_id = ${s}`);
     // A kept Book Dock original follows the book its copy now belongs to.
     await tx.execute(sql`update book_dock_kept_files set book_id = ${k} where book_id = ${s}`);
+    // CrossPoint ledger rows follow the kept book. When a device already tracks the kept book, the
+    // source's remote path stays as a bookless row so a later sync can remove it with the rest.
+    await tx.execute(sql`
+      insert into crosspoint_device_books
+        (user_id, device_id, book_id, file_id, remote_path, file_hash, file_size, last_seen_run_id, synced_at)
+      select src.user_id, src.device_id, null, null, src.remote_path, null, null, null, null
+      from crosspoint_device_books src
+      join crosspoint_device_books tgt
+        on tgt.device_id = src.device_id and tgt.book_id = ${k}
+      where src.book_id = ${s}
+        and not exists (
+          select 1 from crosspoint_device_books existing
+          where existing.device_id = src.device_id and existing.remote_path = src.remote_path
+        )
+      on conflict do nothing
+    `);
+    await tx.execute(sql`
+      delete from crosspoint_device_books src
+      using crosspoint_device_books tgt
+      where src.book_id = ${s} and tgt.book_id = ${k} and src.device_id = tgt.device_id
+    `);
+    await tx.execute(sql`update crosspoint_device_books set book_id = ${k} where book_id = ${s}`);
     await tx.execute(sql`
       insert into book_duplicate_dismissals (user_id, kind, book_id_a, book_id_b, created_at)
       select user_id, kind,
@@ -913,6 +935,7 @@ export class BookConsolidationRepository {
     await tx.execute(sql`update audiobook_progress set current_file_id = ${w} where current_file_id = ${l}`);
     await tx.execute(sql`update read_aloud_jobs set output_file_id = ${w} where output_file_id = ${l}`);
     await tx.execute(sql`update read_aloud_jobs set replace_file_id = ${w} where replace_file_id = ${l}`);
+    await tx.execute(sql`update crosspoint_device_books set file_id = ${w} where file_id = ${l}`);
     await tx.execute(sql`delete from kobo_device_deliveries where source_file_id = ${l}`);
     await deleteBookFilesWithHashInvalidation(tx, eq(schema.bookFiles.id, l));
   }

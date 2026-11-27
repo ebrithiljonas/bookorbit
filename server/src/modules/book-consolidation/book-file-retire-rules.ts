@@ -37,4 +37,5 @@ export const BOOK_FILE_RETIRE_RULES: Readonly<Record<string, BookFileRetireRuleK
   'kobo_device_deliveries.source_file_id': 'drop',
   'read_aloud_jobs.output_file_id': 'repoint',
   'read_aloud_jobs.replace_file_id': 'repoint',
+  'crosspoint_device_books.file_id': 'repoint',
 };
