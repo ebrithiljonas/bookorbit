@@ -22,6 +22,7 @@ import { users } from './auth';
 import { bookFiles, books } from './books';
 import { collections } from './collections';
 import { libraries } from './libraries';
+import { bookmarks } from './reader';
 import { smartScopes } from './smart-scopes';
 
 export const crosspointDevices = pgTable(
@@ -40,6 +41,9 @@ export const crosspointDevices = pgTable(
     firmwareVersion: varchar('firmware_version', { length: 64 }),
     rootFolder: varchar('root_folder', { length: 512 }).notNull().default('/BookOrbit'),
     fileNamingPattern: text('file_naming_pattern').notNull().default('{library}/<{authors:first}|Unknown Author>/<{series}/>{originalFilename}'),
+    syncToken: varchar('sync_token', { length: 32 })
+      .notNull()
+      .default(sql`replace(gen_random_uuid()::text, '-', '')`),
     selectionMode: varchar('selection_mode', { length: 16 }).notNull().default('all').$type<CrosspointSelectionMode>(),
     removeMissing: boolean('remove_missing').notNull().default(false),
     lastSeenAt: timestamp('last_seen_at', { withTimezone: true }),
@@ -52,6 +56,7 @@ export const crosspointDevices = pgTable(
   },
   (t) => [
     index('crosspoint_devices_user_id_idx').on(t.userId),
+    uniqueIndex('crosspoint_devices_sync_token_uidx').on(t.syncToken),
     uniqueIndex('crosspoint_devices_user_device_id_uidx')
       .on(t.userId, t.deviceId)
       .where(sql`${t.deviceId} is not null`),
@@ -138,6 +143,65 @@ export const crosspointDeviceSmartScopes = pgTable(
   ],
 );
 
+export const crosspointDeviceDocuments = pgTable(
+  'crosspoint_device_documents',
+  {
+    userId: integer('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    deviceId: integer('device_id').notNull(),
+    documentHash: varchar('document_hash', { length: 64 }).notNull(),
+    bookFileId: integer('book_file_id')
+      .notNull()
+      .references(() => bookFiles.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .defaultNow()
+      .notNull()
+      .$onUpdateFn(() => new Date()),
+  },
+  (t) => [
+    primaryKey({ columns: [t.deviceId, t.documentHash] }),
+    foreignKey({
+      columns: [t.deviceId, t.userId],
+      foreignColumns: [crosspointDevices.id, crosspointDevices.userId],
+      name: 'crosspoint_device_documents_owner_fk',
+    }).onDelete('cascade'),
+    index('crosspoint_device_documents_user_id_idx').on(t.userId),
+    index('crosspoint_device_documents_book_file_id_idx').on(t.bookFileId),
+  ],
+);
+
+export const crosspointBookmarkLinks = pgTable(
+  'crosspoint_bookmark_links',
+  {
+    userId: integer('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    deviceId: integer('device_id').notNull(),
+    crosspointId: varchar('crosspoint_id', { length: 32 }).notNull(),
+    bookmarkId: integer('bookmark_id')
+      .notNull()
+      .references(() => bookmarks.id, { onDelete: 'cascade' }),
+    xpath: text('xpath').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .defaultNow()
+      .notNull()
+      .$onUpdateFn(() => new Date()),
+  },
+  (t) => [
+    primaryKey({ columns: [t.deviceId, t.crosspointId] }),
+    foreignKey({
+      columns: [t.deviceId, t.userId],
+      foreignColumns: [crosspointDevices.id, crosspointDevices.userId],
+      name: 'crosspoint_bookmark_links_owner_fk',
+    }).onDelete('cascade'),
+    index('crosspoint_bookmark_links_user_id_idx').on(t.userId),
+    index('crosspoint_bookmark_links_bookmark_id_idx').on(t.bookmarkId),
+  ],
+);
+
 export const crosspointDeviceBooks = pgTable(
   'crosspoint_device_books',
   {
@@ -149,6 +213,7 @@ export const crosspointDeviceBooks = pgTable(
     bookId: integer('book_id').references(() => books.id, { onDelete: 'set null' }),
     fileId: integer('file_id').references(() => bookFiles.id, { onDelete: 'set null' }),
     remotePath: varchar('remote_path', { length: 2048 }).notNull(),
+    remoteFilenameHash: varchar('remote_filename_hash', { length: 32 }).generatedAlwaysAs(sql`md5(regexp_replace(remote_path, '^.*/', ''))`),
     fileHash: varchar('file_hash', { length: 32 }),
     fileSize: bigint('file_size', { mode: 'number' }),
     lastSeenRunId: integer('last_seen_run_id'),
@@ -170,6 +235,7 @@ export const crosspointDeviceBooks = pgTable(
       .where(sql`${t.bookId} is not null`),
     uniqueIndex('crosspoint_device_books_device_path_uidx').on(t.deviceId, t.remotePath),
     index('crosspoint_device_books_user_device_idx').on(t.userId, t.deviceId),
+    index('crosspoint_device_books_device_filename_hash_idx').on(t.deviceId, t.remoteFilenameHash),
     index('crosspoint_device_books_book_id_idx').on(t.bookId),
     index('crosspoint_device_books_last_seen_run_idx').on(t.deviceId, t.lastSeenRunId),
     check('crosspoint_device_books_file_size_nonnegative_chk', sql`${t.fileSize} is null or ${t.fileSize} >= 0`),

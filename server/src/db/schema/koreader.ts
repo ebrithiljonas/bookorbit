@@ -6,6 +6,7 @@ import {
   foreignKey,
   index,
   integer,
+  jsonb,
   pgTable,
   primaryKey,
   real,
@@ -15,6 +16,8 @@ import {
   uniqueIndex,
   varchar,
 } from 'drizzle-orm/pg-core';
+
+import type { CrosspointRichPosition } from '@bookorbit/types';
 
 import { bookFiles } from './books';
 import { bookmarks } from './reader';
@@ -76,6 +79,7 @@ export const koreaderDeviceProgress = pgTable(
     deviceId: varchar('device_id', { length: 100 }).notNull(),
     percentage: real('percentage'),
     progress: text('progress'),
+    position: jsonb('position').$type<CrosspointRichPosition>(),
     chapterIndex: integer('chapter_index'),
     syncTimestamp: bigint('sync_timestamp', { mode: 'number' }),
     orphaned: boolean('orphaned').notNull().default(false),

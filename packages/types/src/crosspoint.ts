@@ -40,6 +40,23 @@ export interface CrosspointDeviceInfo {
   updatedAt: string;
 }
 
+/** Returned only when an endpoint is created or rotated, so the URL is not exposed in device lists. */
+export interface CrosspointDeviceSetup extends CrosspointDeviceInfo {
+  syncToken: string;
+}
+
+/** Rich position the CrossPoint firmware sends alongside a progress update. */
+export interface CrosspointRichPosition {
+  pctQ?: number;
+  spine?: number;
+  page?: number;
+  pages?: number;
+  para?: number;
+  li?: number;
+  anchor?: string;
+  xpath?: string;
+}
+
 export interface CrosspointProbeResult {
   reachable: boolean;
   isCrosspoint: boolean;

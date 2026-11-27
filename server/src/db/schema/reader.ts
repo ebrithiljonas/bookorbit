@@ -499,6 +499,8 @@ export const bookmarks = pgTable(
     cfi: varchar('cfi', { length: 2000 }),
     title: varchar('title', { length: 500 }).notNull(),
     note: text('note'),
+    // Whole-book percentage from a device that reports one with the bookmark. Null for web-created rows.
+    positionPercent: real('position_percent'),
     chapterId: varchar('chapter_id', { length: 80 }),
     // Audio: absolute book position in seconds (sum of preceding file durations + offset).
     positionSeconds: real('position_seconds'),
@@ -530,6 +532,7 @@ export const bookmarks = pgTable(
       .on(t.userId, t.bookId, t.positionSeconds)
       .where(sql`${t.positionSeconds} is not null and ${t.cfi} is null and ${t.deletedAt} is null`),
     check('bookmarks_origin_chk', sql`${t.origin} in ('web', 'koreader', 'kobo')`),
+    check('bookmarks_position_percent_range_chk', sql`${t.positionPercent} is null or (${t.positionPercent} >= 0 and ${t.positionPercent} <= 100)`),
   ],
 );
 
