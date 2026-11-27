@@ -399,6 +399,16 @@ export const routes: RouteRecordRaw[] = [
             meta: { maxWidth: 'max-w-4xl', title: () => t('titles.koboSync') },
           },
           {
+            path: 'crosspoint',
+            name: 'settings-crosspoint',
+            component: () => import('@/features/settings/CrosspointSettings.vue'),
+            meta: {
+              maxWidth: 'max-w-4xl',
+              requiredPermission: Permission.CrosspointSync,
+              title: () => t('titles.crosspointSync'),
+            },
+          },
+          {
             path: 'koreader',
             name: 'settings-koreader',
             component: () => import('@/features/settings/KoreaderSettings.vue'),

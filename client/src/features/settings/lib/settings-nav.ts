@@ -409,6 +409,15 @@ export const SETTINGS_NAV: readonly SettingsNavGroup[] = [
         isVisible: anyPermission(Permission.KoboSync),
       },
       {
+        id: 'crosspoint',
+        routeName: 'settings-crosspoint',
+        labelKey: 'settings.common.nav.crosspoint',
+        descriptionKey: 'settings.nav.descriptions.crosspoint',
+        icon: Tablet,
+        keywords: 'crosspoint reader sync epub wifi wireless device upload',
+        isVisible: anyPermission(Permission.CrosspointSync),
+      },
+      {
         id: 'koreader',
         routeName: 'settings-koreader',
         labelKey: 'settings.common.nav.koreader',
