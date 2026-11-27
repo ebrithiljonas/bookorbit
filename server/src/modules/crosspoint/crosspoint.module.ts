@@ -9,7 +9,6 @@ import { CrosspointSyncRepository } from './crosspoint-sync.repository';
 import { CrosspointBookSelectionService } from './services/crosspoint-book-selection.service';
 import { CrosspointClientService } from './services/crosspoint-client.service';
 import { CrosspointDeviceService } from './services/crosspoint-device.service';
-import { CrosspointDiscoveryService } from './services/crosspoint-discovery.service';
 import { CrosspointSyncRunner } from './services/crosspoint-sync-runner.service';
 import { CrosspointSyncService } from './services/crosspoint-sync.service';
 
@@ -20,7 +19,6 @@ import { CrosspointSyncService } from './services/crosspoint-sync.service';
     CrosspointRepository,
     CrosspointSyncRepository,
     CrosspointClientService,
-    CrosspointDiscoveryService,
     CrosspointDeviceService,
     CrosspointBookSelectionService,
     CrosspointSyncRunner,

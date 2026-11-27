@@ -18,7 +18,7 @@ function makeDevice(overrides: Partial<CrosspointDeviceRow> = {}): CrosspointDev
     deviceModel: 'X4',
     firmwareVersion: '1.0.0',
     rootFolder: '/BookOrbit',
-    fileNamingPattern: '<{authors:first} - >{title}',
+    fileNamingPattern: '{library}/<{authors:first}|Unknown Author>/<{series}/>{originalFilename}',
     selectionMode: 'all',
     removeMissing: false,
     lastSeenAt: NOW,
@@ -54,16 +54,23 @@ describe('CrosspointDeviceService', () => {
     updateDevice: vi.fn(),
     updateDeviceFields: vi.fn(),
     deleteDevice: vi.fn(),
+    findExistingLibraryIds: vi.fn(),
     findOwnedCollectionIds: vi.fn(),
     findVisibleSmartScopeIds: vi.fn(),
   };
   const client = { probe: vi.fn() };
-  const discovery = { discover: vi.fn() };
-  const service = new CrosspointDeviceService(repository as never, client as never, discovery as never);
+  const libraryScope = { visibleIdsOrAllForUserId: vi.fn() };
+  const service = new CrosspointDeviceService(repository as never, client as never, libraryScope as never);
 
   beforeEach(() => {
     vi.clearAllMocks();
-    repository.listSelections.mockResolvedValue({ collectionIdsByDevice: new Map(), smartScopeIdsByDevice: new Map() });
+    repository.listSelections.mockResolvedValue({
+      libraryIdsByDevice: new Map(),
+      collectionIdsByDevice: new Map(),
+      smartScopeIdsByDevice: new Map(),
+    });
+    repository.findExistingLibraryIds.mockResolvedValue([]);
+    libraryScope.visibleIdsOrAllForUserId.mockResolvedValue(null);
     repository.findDeviceByStableId.mockResolvedValue(undefined);
     repository.findDeviceByAddress.mockResolvedValue(undefined);
     repository.findOwnedCollectionIds.mockResolvedValue([]);
@@ -73,6 +80,7 @@ describe('CrosspointDeviceService', () => {
   it('lists devices with their saved selection', async () => {
     repository.listDevices.mockResolvedValue([makeDevice()]);
     repository.listSelections.mockResolvedValue({
+      libraryIdsByDevice: new Map([[1, [33]]]),
       collectionIdsByDevice: new Map([[1, [11]]]),
       smartScopeIdsByDevice: new Map([[1, [22]]]),
     });
@@ -82,7 +90,7 @@ describe('CrosspointDeviceService', () => {
     expect(device).toMatchObject({
       id: 1,
       host: '192.168.1.50',
-      selection: { mode: 'all', collectionIds: [11], smartScopeIds: [22] },
+      selection: { mode: 'all', libraryIds: [33], collectionIds: [11], smartScopeIds: [22] },
       lastSeenAt: NOW.toISOString(),
     });
   });
@@ -97,7 +105,7 @@ describe('CrosspointDeviceService', () => {
       name: '  Bedroom reader  ',
       host: '192.168.1.50',
       removeMissing: true,
-      selection: { mode: 'selected', collectionIds: [3], smartScopeIds: [4] },
+      selection: { mode: 'selected', libraryIds: [], collectionIds: [3], smartScopeIds: [4] },
     });
 
     expect(client.probe).toHaveBeenCalledWith('192.168.1.50', 81, 80);
@@ -115,9 +123,30 @@ describe('CrosspointDeviceService', () => {
         selectionMode: 'selected',
         removeMissing: true,
       }),
-      { mode: 'selected', collectionIds: [3], smartScopeIds: [4] },
+      { mode: 'selected', libraryIds: [], collectionIds: [3], smartScopeIds: [4] },
     );
     expect(device).toMatchObject({ id: 1, name: 'Bedroom reader', selection: { mode: 'selected' } });
+  });
+
+  it('registers a reader limited to selected libraries', async () => {
+    client.probe.mockResolvedValue(makeProbe());
+    repository.findExistingLibraryIds.mockResolvedValue([3]);
+    libraryScope.visibleIdsOrAllForUserId.mockResolvedValue([2, 3]);
+    repository.createDevice.mockImplementation((values: Partial<CrosspointDeviceRow>) => makeDevice(values));
+
+    const device = await service.createDevice(7, {
+      name: 'Library reader',
+      host: '192.168.1.50',
+      selection: { mode: 'libraries', libraryIds: [3], collectionIds: [], smartScopeIds: [] },
+    });
+
+    expect(repository.createDevice).toHaveBeenCalledWith(expect.objectContaining({ selectionMode: 'libraries' }), {
+      mode: 'libraries',
+      libraryIds: [3],
+      collectionIds: [],
+      smartScopeIds: [],
+    });
+    expect(device).toMatchObject({ selection: { mode: 'libraries', libraryIds: [3] } });
   });
 
   it('refuses a reader that is already registered under its stable id', async () => {
@@ -144,14 +173,14 @@ describe('CrosspointDeviceService', () => {
     const device = await service.updateDevice(7, 1, {
       name: 'Den reader',
       rootFolder: '/Shelf',
-      selection: { mode: 'selected', collectionIds: [5], smartScopeIds: [] },
+      selection: { mode: 'selected', libraryIds: [], collectionIds: [5], smartScopeIds: [] },
     });
 
     expect(repository.updateDevice).toHaveBeenCalledWith(
       7,
       1,
       expect.objectContaining({ name: 'Den reader', rootFolder: '/Shelf', selectionMode: 'selected' }),
-      { mode: 'selected', collectionIds: [5], smartScopeIds: [] },
+      { mode: 'selected', libraryIds: [], collectionIds: [5], smartScopeIds: [] },
     );
     expect(device).toMatchObject({ name: 'Den reader', rootFolder: '/Shelf', selection: { mode: 'selected' } });
   });
@@ -197,25 +226,5 @@ describe('CrosspointDeviceService', () => {
       firmwareVersion: '1.0.0',
       lastSeenAt: expect.any(Date),
     });
-  });
-
-  it('marks a discovered reader that is already registered', async () => {
-    discovery.discover.mockResolvedValue([{ host: '192.168.1.50', wsPort: 81, hostname: 'crosspoint-x4' }]);
-    repository.listDevices.mockResolvedValue([makeDevice()]);
-    client.probe.mockResolvedValue(makeProbe());
-
-    await expect(service.discoverDevices(7)).resolves.toEqual([
-      expect.objectContaining({
-        host: '192.168.1.50',
-        wsPort: 81,
-        httpPort: 80,
-        hostname: 'crosspoint-x4',
-        deviceId: 'a'.repeat(64),
-        deviceModel: 'X4',
-        reachable: true,
-        isCrosspoint: true,
-        alreadyAdded: true,
-      }),
-    ]);
   });
 });

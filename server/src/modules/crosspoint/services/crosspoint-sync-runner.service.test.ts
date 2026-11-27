@@ -11,7 +11,7 @@ import { CrosspointSyncRunner } from './crosspoint-sync-runner.service';
 
 const NOW = new Date('2026-01-01T00:00:00.000Z');
 const HASH = 'a'.repeat(32);
-const SELECTION: CrosspointSelection = { mode: 'all', collectionIds: [], smartScopeIds: [] };
+const SELECTION: CrosspointSelection = { mode: 'all', libraryIds: [], collectionIds: [], smartScopeIds: [] };
 
 function makeDevice(overrides: Partial<CrosspointDeviceRow> = {}): CrosspointDeviceRow {
   return {
@@ -25,7 +25,7 @@ function makeDevice(overrides: Partial<CrosspointDeviceRow> = {}): CrosspointDev
     deviceModel: 'X4',
     firmwareVersion: '1.0.0',
     rootFolder: '/BookOrbit',
-    fileNamingPattern: '<{authors:first} - >{title}',
+    fileNamingPattern: '{library}/<{authors:first}|Unknown Author>/<{series}/>{originalFilename}',
     selectionMode: 'all',
     removeMissing: true,
     lastSeenAt: NOW,
@@ -72,7 +72,7 @@ function makeLedger(overrides: Partial<CrosspointDeviceBookRow> = {}): Crosspoin
     deviceId: 1,
     bookId: 123,
     fileId: 5,
-    remotePath: '/BookOrbit/Frank Herbert - Dune.epub',
+    remotePath: '/BookOrbit/Books/Frank Herbert/dune.epub',
     fileHash: HASH,
     fileSize: 11,
     lastSeenRunId: 0,
@@ -188,15 +188,15 @@ describe('CrosspointSyncRunner', () => {
 
     expect(client.uploadFile).toHaveBeenCalledWith(
       expect.objectContaining({
-        directory: '/BookOrbit',
-        filename: 'Frank Herbert - Dune.epub',
+        directory: '/BookOrbit/Books/Frank Herbert',
+        filename: 'dune.epub',
         filePath,
       }),
     );
     expect(repository.insertLedgerBook).toHaveBeenCalledWith(
       expect.objectContaining({
         bookId: 123,
-        remotePath: '/BookOrbit/Frank Herbert - Dune.epub',
+        remotePath: '/BookOrbit/Books/Frank Herbert/dune.epub',
         fileHash: HASH,
         fileSize: 11,
         lastSeenRunId: 1,
@@ -211,7 +211,7 @@ describe('CrosspointSyncRunner', () => {
     await writeFile(filePath, 'hello world');
     const book = makeBook({ filePath, fileSize: 11 });
     repository.listLedger.mockResolvedValue([makeLedger()]);
-    client.listFilesRecursive.mockResolvedValue([remoteFile('/BookOrbit/Frank Herbert - Dune.epub', 11)]);
+    client.listFilesRecursive.mockResolvedValue([remoteFile('/BookOrbit/Books/Frank Herbert/dune.epub', 11)]);
     selection.page.mockResolvedValueOnce([book]);
 
     await run();

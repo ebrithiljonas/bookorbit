@@ -84,7 +84,7 @@ describe('CrosspointClientService', () => {
     await expect(service.probe('192.168.1.50', 81, 80)).resolves.toMatchObject({
       reachable: false,
       isCrosspoint: false,
-      error: 'Could not reach the reader: connect ECONNREFUSED',
+      error: 'Could not reach the reader. Put it into File Transfer mode and check its address and network.',
     });
   });
 

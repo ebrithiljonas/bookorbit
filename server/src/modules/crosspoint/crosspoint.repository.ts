@@ -11,6 +11,7 @@ type Transaction = Parameters<Parameters<Db['transaction']>[0]>[0];
 type DeviceValues = Partial<typeof schema.crosspointDevices.$inferInsert>;
 
 export interface DeviceSelectionRows {
+  libraryIdsByDevice: Map<number, number[]>;
   collectionIdsByDevice: Map<number, number[]>;
   smartScopeIdsByDevice: Map<number, number[]>;
 }
@@ -94,11 +95,16 @@ export class CrosspointRepository {
   }
 
   async listSelections(userId: number, deviceIds: number[]): Promise<DeviceSelectionRows> {
+    const libraryIdsByDevice = new Map<number, number[]>();
     const collectionIdsByDevice = new Map<number, number[]>();
     const smartScopeIdsByDevice = new Map<number, number[]>();
-    if (deviceIds.length === 0) return { collectionIdsByDevice, smartScopeIdsByDevice };
+    if (deviceIds.length === 0) return { libraryIdsByDevice, collectionIdsByDevice, smartScopeIdsByDevice };
 
-    const [collectionRows, smartScopeRows] = await Promise.all([
+    const [libraryRows, collectionRows, smartScopeRows] = await Promise.all([
+      this.db
+        .select({ deviceId: schema.crosspointDeviceLibraries.deviceId, libraryId: schema.crosspointDeviceLibraries.libraryId })
+        .from(schema.crosspointDeviceLibraries)
+        .where(and(eq(schema.crosspointDeviceLibraries.userId, userId), inArray(schema.crosspointDeviceLibraries.deviceId, deviceIds))),
       this.db
         .select({ deviceId: schema.crosspointDeviceCollections.deviceId, collectionId: schema.crosspointDeviceCollections.collectionId })
         .from(schema.crosspointDeviceCollections)
@@ -109,6 +115,11 @@ export class CrosspointRepository {
         .where(and(eq(schema.crosspointDeviceSmartScopes.userId, userId), inArray(schema.crosspointDeviceSmartScopes.deviceId, deviceIds))),
     ]);
 
+    for (const row of libraryRows) {
+      const ids = libraryIdsByDevice.get(row.deviceId) ?? [];
+      ids.push(row.libraryId);
+      libraryIdsByDevice.set(row.deviceId, ids);
+    }
     for (const row of collectionRows) {
       const ids = collectionIdsByDevice.get(row.deviceId) ?? [];
       ids.push(row.collectionId);
@@ -119,7 +130,13 @@ export class CrosspointRepository {
       ids.push(row.smartScopeId);
       smartScopeIdsByDevice.set(row.deviceId, ids);
     }
-    return { collectionIdsByDevice, smartScopeIdsByDevice };
+    return { libraryIdsByDevice, collectionIdsByDevice, smartScopeIdsByDevice };
+  }
+
+  async findExistingLibraryIds(libraryIds: number[]): Promise<number[]> {
+    if (libraryIds.length === 0) return [];
+    const rows = await this.db.select({ id: schema.libraries.id }).from(schema.libraries).where(inArray(schema.libraries.id, libraryIds));
+    return rows.map((row) => row.id);
   }
 
   async findOwnedCollectionIds(userId: number, collectionIds: number[]): Promise<number[]> {
@@ -142,12 +159,21 @@ export class CrosspointRepository {
 
   private async replaceSelection(tx: Transaction, userId: number, deviceId: number, selection: CrosspointSelection): Promise<void> {
     await tx
+      .delete(schema.crosspointDeviceLibraries)
+      .where(and(eq(schema.crosspointDeviceLibraries.userId, userId), eq(schema.crosspointDeviceLibraries.deviceId, deviceId)));
+    await tx
       .delete(schema.crosspointDeviceCollections)
       .where(and(eq(schema.crosspointDeviceCollections.userId, userId), eq(schema.crosspointDeviceCollections.deviceId, deviceId)));
     await tx
       .delete(schema.crosspointDeviceSmartScopes)
       .where(and(eq(schema.crosspointDeviceSmartScopes.userId, userId), eq(schema.crosspointDeviceSmartScopes.deviceId, deviceId)));
 
+    if (selection.libraryIds.length > 0) {
+      await tx
+        .insert(schema.crosspointDeviceLibraries)
+        .values(selection.libraryIds.map((libraryId) => ({ userId, deviceId, libraryId })))
+        .onConflictDoNothing();
+    }
     if (selection.collectionIds.length > 0) {
       await tx
         .insert(schema.crosspointDeviceCollections)

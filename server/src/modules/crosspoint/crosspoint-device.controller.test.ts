@@ -10,7 +10,6 @@ describe('CrosspointDeviceController', () => {
     createDevice: vi.fn(),
     updateDevice: vi.fn(),
     deleteDevice: vi.fn(),
-    discoverDevices: vi.fn(),
     probeAddress: vi.fn(),
     probeDevice: vi.fn(),
   };
@@ -25,7 +24,6 @@ describe('CrosspointDeviceController', () => {
     service.createDevice.mockResolvedValue({ id: 2, name: 'Reader' });
     service.updateDevice.mockResolvedValue({ id: 2, name: 'Den' });
     service.deleteDevice.mockResolvedValue(undefined);
-    service.discoverDevices.mockResolvedValue([{ host: '192.168.1.50' }]);
     service.probeAddress.mockResolvedValue({ reachable: true });
     service.probeDevice.mockResolvedValue({ reachable: true });
 
@@ -36,7 +34,6 @@ describe('CrosspointDeviceController', () => {
     });
     await expect(controller.updateDevice(2, { name: 'Den' } as never, { id: 7 } as never)).resolves.toEqual({ id: 2, name: 'Den' });
     await expect(controller.deleteDevice(2, { id: 7 } as never)).resolves.toBeUndefined();
-    await expect(controller.discover({ id: 7 } as never)).resolves.toEqual([{ host: '192.168.1.50' }]);
     await expect(controller.probe({ host: '192.168.1.50' } as never)).resolves.toEqual({ reachable: true });
     await expect(controller.probeDevice(2, { id: 7 } as never)).resolves.toEqual({ reachable: true });
 
@@ -44,7 +41,6 @@ describe('CrosspointDeviceController', () => {
     expect(service.createDevice).toHaveBeenCalledWith(7, { name: 'Reader', host: '192.168.1.50' });
     expect(service.updateDevice).toHaveBeenCalledWith(7, 2, { name: 'Den' });
     expect(service.deleteDevice).toHaveBeenCalledWith(7, 2);
-    expect(service.discoverDevices).toHaveBeenCalledWith(7);
     expect(service.probeAddress).toHaveBeenCalledWith({ host: '192.168.1.50' });
     expect(service.probeDevice).toHaveBeenCalledWith(7, 2);
   });

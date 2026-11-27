@@ -39,8 +39,11 @@ export class CrosspointSyncService {
     let remoteFiles: CrosspointFileEntry[];
     try {
       remoteFiles = await this.client.listFilesRecursive(device.host, device.httpPort, device.rootFolder);
-    } catch (error) {
-      throw new BadRequestException(`Could not read the reader's managed folder: ${error instanceof Error ? error.message : String(error)}`);
+    } catch {
+      throw new BadRequestException({
+        message: "The reader's managed folder could not be read. Check that it exists and that the reader is in File Transfer mode.",
+        errorCode: 'CROSSPOINT_FOLDER_READ_FAILED',
+      });
     }
 
     const remoteFilesByPath = new Map(remoteFiles.map((file) => [file.path, file]));
@@ -107,9 +110,11 @@ export class CrosspointSyncService {
 
   async start(userId: number, deviceId: number): Promise<CrosspointSyncStartResponse> {
     const { device, selection } = await this.loadDevice(userId, deviceId);
-    if (this.runner.isRunning(device.id)) throw new ConflictException('A sync is already running for this reader');
+    if (this.runner.isRunning(device.id)) {
+      throw new ConflictException({ message: 'A sync is already running for this reader.', errorCode: 'CROSSPOINT_SYNC_RUNNING' });
+    }
     const running = await this.repository.findRunningRun(userId, device.id);
-    if (running) throw new ConflictException('A sync is already running for this reader');
+    if (running) throw new ConflictException({ message: 'A sync is already running for this reader.', errorCode: 'CROSSPOINT_SYNC_RUNNING' });
 
     this.runner.reserve(device.id);
     let runId: number | null = null;
@@ -157,7 +162,7 @@ export class CrosspointSyncService {
   async cancel(userId: number, deviceId: number): Promise<void> {
     const device = await this.requireDevice(userId, deviceId);
     if (!this.runner.cancel(device.id)) {
-      throw new ConflictException('No sync is running for this reader');
+      throw new ConflictException({ message: 'No sync is running for this reader.', errorCode: 'CROSSPOINT_NO_ACTIVE_SYNC' });
     }
   }
 
@@ -174,6 +179,7 @@ export class CrosspointSyncService {
       device,
       selection: {
         mode: device.selectionMode,
+        libraryIds: selections.libraryIdsByDevice.get(device.id) ?? [],
         collectionIds: selections.collectionIdsByDevice.get(device.id) ?? [],
         smartScopeIds: selections.smartScopeIdsByDevice.get(device.id) ?? [],
       },
@@ -189,9 +195,17 @@ export class CrosspointSyncService {
   private async assertReaderReachable(device: CrosspointDeviceRow): Promise<void> {
     const probe = await this.client.probe(device.host, device.wsPort, device.httpPort);
     if (!probe.reachable) {
-      throw new BadRequestException(probe.error ?? 'Could not reach the reader. Put it into File Transfer or Calibre Wireless mode and try again.');
+      throw new BadRequestException({
+        message: 'The reader could not be reached. Put it into File Transfer mode and check its address and network.',
+        errorCode: 'CROSSPOINT_READER_UNREACHABLE',
+      });
     }
-    if (!probe.isCrosspoint) throw new BadRequestException('The address answered, but it is not a CrossPoint reader');
+    if (!probe.isCrosspoint) {
+      throw new BadRequestException({
+        message: 'That address answered, but it is not a CrossPoint reader.',
+        errorCode: 'CROSSPOINT_NOT_A_READER',
+      });
+    }
   }
 
   private toRun(row: CrosspointSyncRunRow): CrosspointSyncRun {

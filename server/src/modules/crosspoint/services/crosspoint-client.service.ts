@@ -109,7 +109,7 @@ export class CrosspointClientService {
       this.logger.warn(
         `[crosspoint.probe] [fail] host="${safeHost}" durationMs=${Date.now() - startedAt} errorClass=${err.name} error="${sanitizeLogValue(err.message)}" - reader unreachable`,
       );
-      return this.unreachable(`Could not reach the reader: ${err.message}`);
+      return this.unreachable('Could not reach the reader. Put it into File Transfer mode and check its address and network.');
     }
 
     if (!response.ok) {

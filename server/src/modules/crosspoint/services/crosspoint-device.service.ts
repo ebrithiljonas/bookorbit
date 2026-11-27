@@ -5,14 +5,13 @@ import {
   CROSSPOINT_DEFAULT_ROOT_FOLDER,
   CROSSPOINT_DEFAULT_WS_PORT,
   type CrosspointDeviceInfo,
-  type CrosspointDiscoveredDevice,
   type CrosspointProbeResult,
   type CrosspointSelection,
 } from '@bookorbit/types';
 
-import { mapWithConcurrency } from '../../../common/utils/batch.utils';
 import { isUniqueViolation } from '../../../common/utils/db-error.utils';
 import { sanitizeLogValue } from '../../../common/utils/log-sanitize.utils';
+import { LibraryScopeService } from '../../../common/library-scope/library-scope.service';
 import { ensureSafeRemoteHost } from '../../../common/utils/ssrf.utils';
 import type { CrosspointDeviceRow } from '../../../db/schema';
 import type { CreateCrosspointDeviceDto } from '../dto/create-device.dto';
@@ -21,7 +20,6 @@ import type { UpdateCrosspointDeviceDto } from '../dto/update-device.dto';
 import { normalizeCrosspointFileNamingPattern, normalizeCrosspointRootFolder } from '../crosspoint-path.utils';
 import { CrosspointRepository, type DeviceSelectionRows } from '../crosspoint.repository';
 import { CrosspointClientService } from './crosspoint-client.service';
-import { CrosspointDiscoveryService } from './crosspoint-discovery.service';
 
 interface CrosspointAddress {
   host: string;
@@ -31,11 +29,10 @@ interface CrosspointAddress {
 
 interface CrosspointSelectionInput {
   mode: CrosspointSelection['mode'];
+  libraryIds?: number[];
   collectionIds?: number[];
   smartScopeIds?: number[];
 }
-
-const DISCOVERY_PROBE_CONCURRENCY = 4;
 
 @Injectable()
 export class CrosspointDeviceService {
@@ -44,7 +41,7 @@ export class CrosspointDeviceService {
   constructor(
     private readonly repository: CrosspointRepository,
     private readonly client: CrosspointClientService,
-    private readonly discovery: CrosspointDiscoveryService,
+    private readonly libraryScope: LibraryScopeService,
   ) {}
 
   async listDevices(userId: number): Promise<CrosspointDeviceInfo[]> {
@@ -218,52 +215,6 @@ export class CrosspointDeviceService {
     return this.client.probe(address.host, address.wsPort, address.httpPort);
   }
 
-  async discoverDevices(userId: number): Promise<CrosspointDiscoveredDevice[]> {
-    const startedAt = Date.now();
-    const [discovered, existingDevices] = await Promise.all([this.discovery.discover(), this.repository.listDevices(userId)]);
-
-    const devices = await mapWithConcurrency(discovered, DISCOVERY_PROBE_CONCURRENCY, async (device) => {
-      let probe: CrosspointProbeResult;
-      try {
-        probe = await this.client.probe(device.host, device.wsPort, CROSSPOINT_DEFAULT_HTTP_PORT);
-      } catch {
-        probe = {
-          reachable: false,
-          isCrosspoint: false,
-          deviceId: null,
-          deviceModel: null,
-          firmwareVersion: null,
-          mode: null,
-          ip: null,
-          error: 'Reader address rejected',
-        };
-      }
-
-      const alreadyAdded = existingDevices.some(
-        (existing) =>
-          (probe.deviceId !== null && existing.deviceId === probe.deviceId) || (existing.host === device.host && existing.wsPort === device.wsPort),
-      );
-
-      return {
-        host: device.host,
-        wsPort: device.wsPort,
-        httpPort: CROSSPOINT_DEFAULT_HTTP_PORT,
-        hostname: device.hostname,
-        deviceId: probe.deviceId,
-        deviceModel: probe.deviceModel,
-        firmwareVersion: probe.firmwareVersion,
-        reachable: probe.reachable,
-        isCrosspoint: probe.isCrosspoint,
-        alreadyAdded,
-      } satisfies CrosspointDiscoveredDevice;
-    });
-
-    this.logger.log(
-      `[crosspoint.discovery] [end] userId=${userId} durationMs=${Date.now() - startedAt} devices=${devices.length} - reader discovery completed`,
-    );
-    return devices;
-  }
-
   private async resolveAddress(host: string, wsPort?: number, httpPort?: number): Promise<CrosspointAddress> {
     const trimmed = host.trim().toLowerCase();
     if (!trimmed) throw new BadRequestException('Reader address is required');
@@ -278,10 +229,16 @@ export class CrosspointDeviceService {
   private async probeOrThrow(address: CrosspointAddress): Promise<CrosspointProbeResult> {
     const probe = await this.client.probe(address.host, address.wsPort, address.httpPort);
     if (!probe.reachable) {
-      throw new BadRequestException(probe.error ?? 'Could not reach the reader. Put it into File Transfer or Calibre Wireless mode and try again.');
+      throw new BadRequestException({
+        message: 'The reader could not be reached. Put it into File Transfer mode and check its address and network.',
+        errorCode: 'CROSSPOINT_READER_UNREACHABLE',
+      });
     }
     if (!probe.isCrosspoint) {
-      throw new BadRequestException('The address answered, but it is not a CrossPoint reader');
+      throw new BadRequestException({
+        message: 'That address answered, but it is not a CrossPoint reader.',
+        errorCode: 'CROSSPOINT_NOT_A_READER',
+      });
     }
     return probe;
   }
@@ -289,16 +246,25 @@ export class CrosspointDeviceService {
   private normalizeSelection(selection?: CrosspointSelectionInput): CrosspointSelection {
     return {
       mode: selection?.mode ?? 'all',
+      libraryIds: [...new Set(selection?.libraryIds ?? [])],
       collectionIds: [...new Set(selection?.collectionIds ?? [])],
       smartScopeIds: [...new Set(selection?.smartScopeIds ?? [])],
     };
   }
 
   private async assertSelectionVisible(userId: number, selection: CrosspointSelection): Promise<void> {
-    const [ownedCollections, visibleSmartScopes] = await Promise.all([
+    const [existingLibraries, accessibleLibraryIds, ownedCollections, visibleSmartScopes] = await Promise.all([
+      this.repository.findExistingLibraryIds(selection.libraryIds),
+      this.libraryScope.visibleIdsOrAllForUserId(userId),
       this.repository.findOwnedCollectionIds(userId, selection.collectionIds),
       this.repository.findVisibleSmartScopeIds(userId, selection.smartScopeIds),
     ]);
+    if (existingLibraries.length !== selection.libraryIds.length) {
+      throw new BadRequestException('One or more selected libraries no longer exist');
+    }
+    if (accessibleLibraryIds !== null && selection.libraryIds.some((id) => !accessibleLibraryIds.includes(id))) {
+      throw new BadRequestException('One or more selected libraries are not available');
+    }
     if (ownedCollections.length !== selection.collectionIds.length) {
       throw new BadRequestException('One or more selected collections no longer exist');
     }
@@ -311,6 +277,7 @@ export class CrosspointDeviceService {
     const selections = await this.repository.listSelections(userId, [deviceId]);
     return {
       mode: (await this.repository.findDevice(userId, deviceId))?.selectionMode ?? 'all',
+      libraryIds: selections.libraryIdsByDevice.get(deviceId) ?? [],
       collectionIds: selections.collectionIdsByDevice.get(deviceId) ?? [],
       smartScopeIds: selections.smartScopeIdsByDevice.get(deviceId) ?? [],
     };
@@ -319,6 +286,7 @@ export class CrosspointDeviceService {
   private selectionFor(device: CrosspointDeviceRow, selections: DeviceSelectionRows): CrosspointSelection {
     return {
       mode: device.selectionMode,
+      libraryIds: selections.libraryIdsByDevice.get(device.id) ?? [],
       collectionIds: selections.collectionIdsByDevice.get(device.id) ?? [],
       smartScopeIds: selections.smartScopeIdsByDevice.get(device.id) ?? [],
     };

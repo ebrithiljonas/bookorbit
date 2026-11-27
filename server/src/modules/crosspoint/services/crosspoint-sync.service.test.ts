@@ -20,7 +20,7 @@ function makeDevice(overrides: Partial<CrosspointDeviceRow> = {}): CrosspointDev
     deviceModel: 'X4',
     firmwareVersion: '1.0.0',
     rootFolder: '/BookOrbit',
-    fileNamingPattern: '<{authors:first} - >{title}',
+    fileNamingPattern: '{library}/<{authors:first}|Unknown Author>/<{series}/>{originalFilename}',
     selectionMode: 'all',
     removeMissing: false,
     lastSeenAt: NOW,
@@ -126,7 +126,7 @@ describe('CrosspointSyncService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     devices.findDevice.mockResolvedValue(makeDevice());
-    devices.listSelections.mockResolvedValue({ collectionIdsByDevice: new Map(), smartScopeIdsByDevice: new Map() });
+    devices.listSelections.mockResolvedValue({ libraryIdsByDevice: new Map(), collectionIdsByDevice: new Map(), smartScopeIdsByDevice: new Map() });
     repository.listLedger.mockResolvedValue([]);
     repository.findRunningRun.mockResolvedValue(undefined);
     repository.createRun.mockResolvedValue(makeRun({ status: 'running', finishedAt: null }));
@@ -251,6 +251,7 @@ describe('CrosspointSyncService', () => {
 
   it('uses the saved selection when previewing', async () => {
     devices.listSelections.mockResolvedValue({
+      libraryIdsByDevice: new Map([[1, [3]]]),
       collectionIdsByDevice: new Map([[1, [4]]]),
       smartScopeIdsByDevice: new Map([[1, [9]]]),
     });
@@ -258,6 +259,9 @@ describe('CrosspointSyncService', () => {
 
     await service.preview(7, 1);
 
-    expect(selection.buildContext).toHaveBeenCalledWith(7, expect.objectContaining({ mode: 'selected', collectionIds: [4], smartScopeIds: [9] }));
+    expect(selection.buildContext).toHaveBeenCalledWith(
+      7,
+      expect.objectContaining({ mode: 'selected', libraryIds: [3], collectionIds: [4], smartScopeIds: [9] }),
+    );
   });
 });

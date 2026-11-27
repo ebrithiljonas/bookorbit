@@ -19,11 +19,32 @@ describe('CrossPoint DTO validation', () => {
       wsPort: 81,
       httpPort: 80,
       rootFolder: '/BookOrbit',
-      fileNamingPattern: '<{authors:first} - >{title}',
+      fileNamingPattern: '{library}/<{authors:first}|Unknown Author>/<{series}/>{originalFilename}',
       removeMissing: true,
-      selection: { mode: 'selected', collectionIds: [1, 2], smartScopeIds: [3] },
+      selection: { mode: 'selected', libraryIds: [9], collectionIds: [1, 2], smartScopeIds: [3] },
     });
     expect(errors).toHaveLength(0);
+  });
+
+  it('accepts library selection and validates its ids', async () => {
+    expect(
+      (
+        await errorsFor(CreateCrosspointDeviceDto, {
+          name: 'Reader',
+          host: '192.168.1.50',
+          selection: { mode: 'libraries', libraryIds: [1, 2] },
+        })
+      ).length,
+    ).toBe(0);
+    expect(
+      (
+        await errorsFor(CreateCrosspointDeviceDto, {
+          name: 'Reader',
+          host: '192.168.1.50',
+          selection: { mode: 'libraries', libraryIds: [0] },
+        })
+      ).length,
+    ).toBeGreaterThan(0);
   });
 
   it('rejects missing names, hosts and invalid ports', async () => {

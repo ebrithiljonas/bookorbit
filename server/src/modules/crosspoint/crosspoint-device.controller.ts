@@ -54,11 +54,6 @@ export class CrosspointDeviceController {
     return this.devices.deleteDevice(user.id, id);
   }
 
-  @Get('discover')
-  discover(@CurrentUser() user: RequestUser) {
-    return this.devices.discoverDevices(user.id);
-  }
-
   @Post('probe')
   probe(@Body() dto: ProbeCrosspointDeviceDto) {
     return this.devices.probeAddress(dto);

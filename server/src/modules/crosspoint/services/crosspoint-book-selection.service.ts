@@ -228,6 +228,11 @@ export class CrosspointBookSelectionService {
   private async membershipClause(userId: number, selection: CrosspointSelection, libraryIds: number[], timeZone: string): Promise<SQL | undefined> {
     if (selection.mode === 'all') return undefined;
 
+    if (selection.mode === 'libraries') {
+      if (selection.libraryIds.length === 0) return sql`false`;
+      return inArray(schema.books.libraryId, selection.libraryIds);
+    }
+
     const clauses: SQL[] = [];
     if (selection.collectionIds.length > 0) {
       clauses.push(

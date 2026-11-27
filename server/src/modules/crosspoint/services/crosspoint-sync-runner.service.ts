@@ -97,7 +97,9 @@ export class CrosspointSyncRunner implements OnModuleInit {
   }
 
   reserve(deviceId: number): void {
-    if (this.isRunning(deviceId)) throw new ConflictException('A sync is already running for this reader');
+    if (this.isRunning(deviceId)) {
+      throw new ConflictException({ message: 'A sync is already running for this reader.', errorCode: 'CROSSPOINT_SYNC_RUNNING' });
+    }
     this.reserved.add(deviceId);
   }
 
@@ -106,7 +108,9 @@ export class CrosspointSyncRunner implements OnModuleInit {
   }
 
   start(userId: number, device: CrosspointDeviceRow, selection: CrosspointSelection, runId: number): void {
-    if (this.active.has(device.id)) throw new ConflictException('A sync is already running for this reader');
+    if (this.active.has(device.id)) {
+      throw new ConflictException({ message: 'A sync is already running for this reader.', errorCode: 'CROSSPOINT_SYNC_RUNNING' });
+    }
     this.reserved.delete(device.id);
     const controller = new AbortController();
     this.active.set(device.id, { runId, controller, current: null });

@@ -11,6 +11,14 @@ export class CrosspointSelectionDto {
   @ArrayMaxSize(500)
   @IsInt({ each: true })
   @Min(1, { each: true })
+  libraryIds?: number[];
+
+  @IsOptional()
+  @IsArray()
+  @ArrayUnique()
+  @ArrayMaxSize(500)
+  @IsInt({ each: true })
+  @Min(1, { each: true })
   collectionIds?: number[];
 
   @IsOptional()
