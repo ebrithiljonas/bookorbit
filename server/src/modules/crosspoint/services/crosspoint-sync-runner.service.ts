@@ -384,9 +384,14 @@ export class CrosspointSyncRunner implements OnModuleInit {
     this.setCurrent(device.id, runId, book, fileSize);
 
     try {
+      const sidecarPath = this.sidecarPath(plan.remotePath);
       if (plan.deleteBeforeUpload) {
         await this.client.deletePaths(device.host, device.httpPort, [plan.remotePath]);
         remoteFilesByPath.delete(plan.remotePath);
+      }
+      if (remoteFilesByPath.has(sidecarPath)) {
+        await this.client.deletePaths(device.host, device.httpPort, [sidecarPath]);
+        remoteFilesByPath.delete(sidecarPath);
       }
 
       const directory = deviceDirname(plan.remotePath);

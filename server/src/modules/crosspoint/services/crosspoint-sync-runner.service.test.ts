@@ -215,6 +215,24 @@ describe('CrosspointSyncRunner', () => {
     expect(devices.updateDeviceFields).toHaveBeenCalledWith(7, 1, { lastSyncAt: expect.any(Date) });
   });
 
+  it('refreshes a stale sidecar when replacing a changed book', async () => {
+    const filePath = join(tempDirectory, 'dune.epub');
+    await writeFile(filePath, 'hello world');
+    const book = makeBook({ filePath, fileSize: 11 });
+    repository.listLedger.mockResolvedValue([makeLedger({ fileHash: 'd'.repeat(32) })]);
+    client.listFilesRecursive.mockResolvedValue([
+      remoteFile('/BookOrbit/Books/Frank Herbert/dune.epub', 11),
+      remoteFile('/BookOrbit/Books/Frank Herbert/dune.epub.meta.json', 60),
+    ]);
+    selection.page.mockResolvedValueOnce([book]);
+
+    await run();
+
+    expect(client.deletePaths).toHaveBeenCalledWith('192.168.1.50', 80, ['/BookOrbit/Books/Frank Herbert/dune.epub']);
+    expect(client.deletePaths).toHaveBeenCalledWith('192.168.1.50', 80, ['/BookOrbit/Books/Frank Herbert/dune.epub.meta.json']);
+    expect(client.uploadFile).toHaveBeenCalledWith(expect.objectContaining({ filename: 'dune.epub.meta.json' }));
+  });
+
   it('skips an unchanged tracked file', async () => {
     const filePath = join(tempDirectory, 'dune.epub');
     await writeFile(filePath, 'hello world');
