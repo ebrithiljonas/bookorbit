@@ -3946,7 +3946,7 @@
         "intro": {
           "title": "Sync EPUBs to a CrossPoint reader",
           "body": "Put the reader into File Transfer mode and keep it on the same Wi-Fi network. BookOrbit uploads the books you choose, and the reader sync endpoint carries reading progress, bookmarks, and reading time back to BookOrbit.",
-          "noProgress": "Reading progress, bookmarks, and reading time use the reader sync endpoint shown after you add the reader."
+          "noProgress": "Reading progress, bookmarks, reading time, and clipping uploads use the reader sync endpoint shown after you add the reader."
         },
         "registeredReaders": "Registered readers",
         "addReader": "Add reader",
@@ -4105,7 +4105,7 @@
           "step1": "Open the CrossPoint Sync settings and enter the URL above as the server URL.",
           "step2": "Use any username and password. The URL identifies this reader.",
           "step3": "Choose CrossPoint or Other as the server type and keep Send metadata enabled.",
-          "step4": "Leave Sync Clippings off for now."
+          "step4": "Clippings can stay enabled. BookOrbit accepts them but does not store them yet."
         }
       },
       "kobo": {

@@ -6,8 +6,9 @@ import { CrosspointReaderSyncController } from './crosspoint-reader-sync.control
 describe('CrosspointReaderSyncController', () => {
   const progress = { save: vi.fn(), get: vi.fn() };
   const bookmarks = { list: vi.fn(), save: vi.fn() };
+  const clippings = { list: vi.fn(), save: vi.fn() };
   const sessions = { upload: vi.fn() };
-  const controller = new CrosspointReaderSyncController(progress as never, bookmarks as never, sessions as never);
+  const controller = new CrosspointReaderSyncController(progress as never, bookmarks as never, clippings as never, sessions as never);
   const user = { id: 7 };
   const device = { deviceId: 3, userId: 7, name: 'Bedroom', syncToken: 'a'.repeat(32) };
 
@@ -20,6 +21,8 @@ describe('CrosspointReaderSyncController', () => {
     progress.get.mockResolvedValue({ document: 'a'.repeat(32), percentage: 0.4 });
     bookmarks.list.mockResolvedValue({ document: 'a'.repeat(32), sync_version: 2, cursor: 0, until: 0, more: false, items: [] });
     bookmarks.save.mockResolvedValue({ until: 1, accepted: 1 });
+    clippings.list.mockReturnValue({ document: 'a'.repeat(32), sync_version: 2, cursor: 0, until: 0, more: false, items: [] });
+    clippings.save.mockReturnValue({ until: 1, accepted: 1 });
     sessions.upload.mockResolvedValue({ until: 1, accepted_session_ids: ['s1'] });
 
     expect(controller.authenticate('bookorbit')).toEqual({ authorized: 'OK', username: 'bookorbit' });
@@ -53,6 +56,11 @@ describe('CrosspointReaderSyncController', () => {
       until: 1,
       accepted: 1,
     });
+    expect(controller.listClippings('a'.repeat(32))).toMatchObject({ sync_version: 2, items: [] });
+    expect(controller.saveClippings(user as never, device, 'a'.repeat(32), { items: [{ id: 'clip-1' }] })).toEqual({
+      until: 1,
+      accepted: 1,
+    });
     await expect(controller.saveSessions(user as never, device, { items: [{}] })).resolves.toEqual({
       until: 1,
       accepted_session_ids: ['s1'],
@@ -64,7 +72,8 @@ describe('CrosspointReaderSyncController', () => {
     await expect(controller.getProgress(user as never, device, 'b'.repeat(32))).rejects.toThrow(NotFoundException);
   });
 
-  it('rejects a missing bookmark batch', () => {
+  it('rejects missing bookmark and clipping batches', () => {
     expect(() => controller.saveBookmarks(user as never, device, 'a'.repeat(32), {})).toThrow();
+    expect(() => controller.saveClippings(user as never, device, 'a'.repeat(32), {})).toThrow();
   });
 });

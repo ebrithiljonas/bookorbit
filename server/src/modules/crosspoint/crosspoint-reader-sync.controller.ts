@@ -22,6 +22,7 @@ import { CrosspointDevice } from './decorators/crosspoint-device.decorator';
 import { CrosspointProgressDto } from './dto/crosspoint-progress.dto';
 import { CrosspointSyncTokenGuard, type CrosspointDeviceContext } from './guards/crosspoint-sync-token.guard';
 import { CrosspointBookmarkService } from './services/crosspoint-bookmark.service';
+import { CrosspointClippingService } from './services/crosspoint-clipping.service';
 import { CrosspointProgressService } from './services/crosspoint-progress.service';
 import { CrosspointReadingSessionService } from './services/crosspoint-reading-session.service';
 
@@ -38,6 +39,7 @@ export class CrosspointReaderSyncController {
   constructor(
     private readonly progress: CrosspointProgressService,
     private readonly bookmarks: CrosspointBookmarkService,
+    private readonly clippings: CrosspointClippingService,
     private readonly sessions: CrosspointReadingSessionService,
   ) {}
 
@@ -97,6 +99,25 @@ export class CrosspointReaderSyncController {
       throw new BadRequestException('Invalid bookmark batch');
     }
     return this.bookmarks.save(user.id, device.deviceId, document, items);
+  }
+
+  @Get('api/v1/clippings/:document')
+  listClippings(@Param('document') document: string) {
+    return this.clippings.list(document);
+  }
+
+  @Put('api/v1/clippings/:document')
+  saveClippings(
+    @CurrentUser() user: RequestUser,
+    @CrosspointDevice() device: CrosspointDeviceContext,
+    @Param('document') document: string,
+    @Body() body: unknown,
+  ) {
+    const items = body && typeof body === 'object' ? (body as { items?: unknown }).items : undefined;
+    if (!Array.isArray(items) || items.length === 0 || items.length > 50) {
+      throw new BadRequestException('Invalid clipping batch');
+    }
+    return this.clippings.save(user.id, device.deviceId, document, items);
   }
 
   @Put('api/v1/stats/sessions')

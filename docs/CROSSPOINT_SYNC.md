@@ -2,7 +2,7 @@
 
 BookOrbit can upload EPUB books from your library to a CrossPoint Reader over Wi-Fi and receive reading progress, bookmarks, and reading time back from the reader. Books are copied from the library into a folder BookOrbit manages on the reader's SD card.
 
-Highlights and clippings are not supported yet. Keep **Sync Clippings** disabled on the reader until they are.
+Highlights and clippings are not stored yet. The reader can keep **Sync Clippings** enabled; BookOrbit accepts the upload and discards it so progress sync continues.
 
 ## Requirements
 
@@ -39,7 +39,7 @@ Keep it private. If it is lost, use the link button on the reader card to genera
 4. Choose `CrossPoint` or `Other` as the server type.
 5. Keep the match method at `Filename` unless you specifically need binary matching.
 6. Enable **Send metadata** so BookOrbit can use the per-book sidecar for exact matching.
-7. Leave **Sync Clippings** off.
+7. Clippings can stay enabled. BookOrbit accepts them but does not store them yet.
 
 BookOrbit writes a small `<book>.meta.json` file next to each uploaded EPUB. The reader forwards its `bookorbit_file_id` during progress sync, which lets BookOrbit match the exact library file even after a rename. Books without a sidecar fall back to the per-reader ledger, then the filename or binary hash.
 
@@ -97,5 +97,5 @@ Changing the pattern changes the paths on the next sync. With removal enabled, t
 ## Limitations
 
 - EPUBs are sent as they are stored in BookOrbit. The Calibre plugin's EPUB optimizer is not part of this version.
-- Highlights and clippings are not synced yet. Keep **Sync Clippings** disabled.
+- Highlights and clippings are accepted but not stored yet.
 - One BookOrbit account should own a given reader. Sharing one reader between accounts can make their managed folders overlap.

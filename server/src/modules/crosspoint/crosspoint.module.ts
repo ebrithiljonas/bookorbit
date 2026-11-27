@@ -17,6 +17,7 @@ import { CrosspointSyncTokenGuard } from './guards/crosspoint-sync-token.guard';
 import { CrosspointBookSelectionService } from './services/crosspoint-book-selection.service';
 import { CrosspointBookmarkService } from './services/crosspoint-bookmark.service';
 import { CrosspointClientService } from './services/crosspoint-client.service';
+import { CrosspointClippingService } from './services/crosspoint-clipping.service';
 import { CrosspointDeviceService } from './services/crosspoint-device.service';
 import { CrosspointDocumentService } from './services/crosspoint-document.service';
 import { CrosspointProgressService } from './services/crosspoint-progress.service';
@@ -37,6 +38,7 @@ import { CrosspointSyncService } from './services/crosspoint-sync.service';
     CrosspointDocumentService,
     CrosspointProgressService,
     CrosspointBookmarkService,
+    CrosspointClippingService,
     CrosspointReadingSessionService,
     CrosspointBookSelectionService,
     CrosspointSyncRunner,
