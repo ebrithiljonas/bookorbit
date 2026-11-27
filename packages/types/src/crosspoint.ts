@@ -63,6 +63,19 @@ export interface CrosspointProbeResult {
   error: string | null;
 }
 
+export interface CrosspointFileEntry {
+  path: string;
+  name: string;
+  size: number;
+  isDirectory: boolean;
+  isEpub: boolean;
+}
+
+export interface CrosspointUploadProgress {
+  sent: number;
+  total: number;
+}
+
 export interface ProbeCrosspointDeviceRequest {
   host: string;
   wsPort?: number;
@@ -94,6 +107,32 @@ export interface CrosspointSyncFailure {
   remotePath: string | null;
   errorClass: string;
   error: string;
+}
+
+export interface CrosspointSyncPreview {
+  totalBooks: number;
+  totalBytes: number;
+  newBooks: number;
+  changedBooks: number;
+  unchangedBooks: number;
+  removedBooks: number;
+  uploadBytes: number;
+}
+
+export interface CrosspointSyncCurrentBook {
+  id: number;
+  title: string | null;
+  bytes: number;
+  transferred: number;
+}
+
+export interface CrosspointSyncStatus {
+  run: CrosspointSyncRun | null;
+  currentBook: CrosspointSyncCurrentBook | null;
+}
+
+export interface CrosspointSyncStartResponse {
+  runId: number;
 }
 
 export interface CrosspointSyncRun {

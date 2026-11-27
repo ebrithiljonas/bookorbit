@@ -44,3 +44,65 @@ export function crosspointHttpUrl(host: string, httpPort: number): string {
   const bracketed = trimmed.includes(':') && !trimmed.startsWith('[') ? `[${trimmed}]` : trimmed;
   return `http://${bracketed}:${httpPort}`;
 }
+
+/** Builds the WebSocket upload URL. */
+export function crosspointWebSocketUrl(host: string, wsPort: number): string {
+  const trimmed = host.trim();
+  const bracketed = trimmed.includes(':') && !trimmed.startsWith('[') ? `[${trimmed}]` : trimmed;
+  return `ws://${bracketed}:${wsPort}/`;
+}
+
+/** Normalizes a path on the reader's SD card to a leading-slash, no-trailing-slash form. */
+export function normalizeDevicePath(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return '/';
+  const parts = trimmed
+    .replace(/\\/g, '/')
+    .split('/')
+    .filter((part) => part.length > 0);
+  if (parts.some((part) => part === '.' || part === '..')) {
+    throw new BadRequestException('Device path cannot contain . or .. segments');
+  }
+  return parts.length === 0 ? '/' : `/${parts.join('/')}`;
+}
+
+/** Joins a managed root folder with the relative path produced by the naming pattern. */
+export function joinDevicePath(root: string, relative: string): string {
+  const normalizedRoot = normalizeDevicePath(root);
+  const normalizedRelative = relative.replace(/\\/g, '/').replace(/^\/+/, '');
+  if (!normalizedRelative) return normalizedRoot;
+  return normalizeDevicePath(normalizedRoot === '/' ? `/${normalizedRelative}` : `${normalizedRoot}/${normalizedRelative}`);
+}
+
+export function deviceDirname(path: string): string {
+  const normalized = normalizeDevicePath(path);
+  if (normalized === '/') return '/';
+  const index = normalized.lastIndexOf('/');
+  return index <= 0 ? '/' : normalized.slice(0, index);
+}
+
+export function deviceBasename(path: string): string {
+  const normalized = normalizeDevicePath(path);
+  return normalized === '/' ? '' : normalized.slice(normalized.lastIndexOf('/') + 1);
+}
+
+export function isPathInsideDevicePath(path: string, root: string): boolean {
+  const normalizedPath = normalizeDevicePath(path);
+  const normalizedRoot = normalizeDevicePath(root);
+  if (normalizedRoot === '/') return true;
+  return normalizedPath === normalizedRoot || normalizedPath.startsWith(`${normalizedRoot}/`);
+}
+
+/** Empty directories that would become orphaned by a deletion, deepest first. Never includes the root. */
+export function ancestorDeviceDirectories(path: string, root: string): string[] {
+  const normalizedRoot = normalizeDevicePath(root);
+  const directories: string[] = [];
+  let current = deviceDirname(path);
+  while (current !== normalizedRoot && isPathInsideDevicePath(current, normalizedRoot)) {
+    directories.push(current);
+    const parent = deviceDirname(current);
+    if (parent === current) break;
+    current = parent;
+  }
+  return directories;
+}
