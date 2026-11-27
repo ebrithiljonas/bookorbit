@@ -1184,6 +1184,13 @@
       "when": 1795766382886,
       "tag": "0168_crosspoint",
       "breakpoints": true
+    },
+    {
+      "idx": 169,
+      "version": "7",
+      "when": 1795782123228,
+      "tag": "0169_crosspoint_libraries",
+      "breakpoints": true
     }
   ]
 }

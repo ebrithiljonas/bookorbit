@@ -21,6 +21,7 @@ import type { CrosspointDeviceModel, CrosspointSelectionMode, CrosspointSyncFail
 import { users } from './auth';
 import { bookFiles, books } from './books';
 import { collections } from './collections';
+import { libraries } from './libraries';
 import { smartScopes } from './smart-scopes';
 
 export const crosspointDevices = pgTable(
@@ -38,7 +39,7 @@ export const crosspointDevices = pgTable(
     deviceModel: varchar('device_model', { length: 8 }).$type<CrosspointDeviceModel>(),
     firmwareVersion: varchar('firmware_version', { length: 64 }),
     rootFolder: varchar('root_folder', { length: 512 }).notNull().default('/BookOrbit'),
-    fileNamingPattern: text('file_naming_pattern').notNull().default('<{authors:first} - >{title}'),
+    fileNamingPattern: text('file_naming_pattern').notNull().default('{library}/<{authors:first}|Unknown Author>/<{series}/>{originalFilename}'),
     selectionMode: varchar('selection_mode', { length: 16 }).notNull().default('all').$type<CrosspointSelectionMode>(),
     removeMissing: boolean('remove_missing').notNull().default(false),
     lastSeenAt: timestamp('last_seen_at', { withTimezone: true }),
@@ -56,7 +57,7 @@ export const crosspointDevices = pgTable(
       .where(sql`${t.deviceId} is not null`),
     uniqueIndex('crosspoint_devices_user_host_port_uidx').on(t.userId, t.host, t.wsPort),
     unique('crosspoint_devices_id_user_id_unique').on(t.id, t.userId),
-    check('crosspoint_devices_selection_mode_chk', sql`${t.selectionMode} in ('all', 'selected')`),
+    check('crosspoint_devices_selection_mode_chk', sql`${t.selectionMode} in ('all', 'libraries', 'selected')`),
     check('crosspoint_devices_ws_port_chk', sql`${t.wsPort} >= 1 and ${t.wsPort} <= 65535`),
     check('crosspoint_devices_http_port_chk', sql`${t.httpPort} >= 1 and ${t.httpPort} <= 65535`),
   ],
@@ -86,6 +87,30 @@ export const crosspointDeviceCollections = pgTable(
     }).onDelete('cascade'),
     index('crosspoint_device_collections_user_id_idx').on(t.userId),
     index('crosspoint_device_collections_collection_id_idx').on(t.collectionId),
+  ],
+);
+
+export const crosspointDeviceLibraries = pgTable(
+  'crosspoint_device_libraries',
+  {
+    userId: integer('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    deviceId: integer('device_id').notNull(),
+    libraryId: integer('library_id')
+      .notNull()
+      .references(() => libraries.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.deviceId, t.libraryId] }),
+    foreignKey({
+      columns: [t.deviceId, t.userId],
+      foreignColumns: [crosspointDevices.id, crosspointDevices.userId],
+      name: 'crosspoint_device_libraries_owner_fk',
+    }).onDelete('cascade'),
+    index('crosspoint_device_libraries_user_id_idx').on(t.userId),
+    index('crosspoint_device_libraries_library_id_idx').on(t.libraryId),
   ],
 );
 

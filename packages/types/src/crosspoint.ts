@@ -1,4 +1,4 @@
-export const CROSSPOINT_SELECTION_MODES = ["all", "selected"] as const;
+export const CROSSPOINT_SELECTION_MODES = ["all", "libraries", "selected"] as const;
 export type CrosspointSelectionMode = (typeof CROSSPOINT_SELECTION_MODES)[number];
 
 export const CROSSPOINT_DEVICE_MODELS = ["X3", "X4"] as const;
@@ -8,13 +8,14 @@ export const CROSSPOINT_SYNC_RUN_STATUSES = ["running", "completed", "failed", "
 export type CrosspointSyncRunStatus = (typeof CROSSPOINT_SYNC_RUN_STATUSES)[number];
 
 export const CROSSPOINT_DEFAULT_ROOT_FOLDER = "/BookOrbit";
-export const CROSSPOINT_DEFAULT_FILE_NAMING_PATTERN = "<{authors:first} - >{title}";
+export const CROSSPOINT_DEFAULT_FILE_NAMING_PATTERN = "{library}/<{authors:first}|Unknown Author>/<{series}/>{originalFilename}";
 export const CROSSPOINT_DEFAULT_WS_PORT = 81;
 export const CROSSPOINT_DEFAULT_HTTP_PORT = 80;
 
-/** Which books a reader receives: everything, or only the chosen collections and smart scopes. */
+/** Which books a reader receives: everything, chosen libraries, or chosen collections and smart scopes. */
 export interface CrosspointSelection {
   mode: CrosspointSelectionMode;
+  libraryIds: number[];
   collectionIds: number[];
   smartScopeIds: number[];
 }
@@ -37,19 +38,6 @@ export interface CrosspointDeviceInfo {
   lastSyncAt: string | null;
   createdAt: string;
   updatedAt: string;
-}
-
-export interface CrosspointDiscoveredDevice {
-  host: string;
-  wsPort: number;
-  httpPort: number;
-  hostname: string | null;
-  deviceId: string | null;
-  deviceModel: CrosspointDeviceModel | null;
-  firmwareVersion: string | null;
-  reachable: boolean;
-  isCrosspoint: boolean;
-  alreadyAdded: boolean;
 }
 
 export interface CrosspointProbeResult {
