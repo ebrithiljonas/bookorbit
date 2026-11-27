@@ -84,6 +84,7 @@ function resetPattern(): void {
       <p class="settings-group-label mb-1">{{ t('settings.reader.crosspoint.editor.patternPreview') }}</p>
       <p v-if="previewPath" class="break-all font-mono text-xs text-foreground">{{ previewPath }}</p>
       <p v-else class="text-xs text-muted-foreground">{{ t('settings.reader.crosspoint.editor.patternPreviewUnavailable') }}</p>
+      <p class="mt-1.5 text-xs text-muted-foreground">{{ t('settings.reader.crosspoint.editor.patternPreviewNote') }}</p>
     </div>
 
     <details class="rounded-md border border-border bg-card">

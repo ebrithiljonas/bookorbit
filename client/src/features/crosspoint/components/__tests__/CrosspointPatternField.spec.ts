@@ -13,6 +13,7 @@ describe('CrosspointPatternField', () => {
     })
 
     expect(wrapper.text()).toContain('/BookOrbit/Books/William Gibson/Sprawl/neuromancer.epub')
+    expect(wrapper.text()).toContain("The book's file extension is added automatically")
   })
 
   it('previews the resolved path under the managed folder', async () => {

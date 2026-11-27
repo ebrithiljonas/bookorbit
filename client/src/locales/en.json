@@ -4088,7 +4088,8 @@
           "selectedLibrariesHint": "Only books from the selected libraries.",
           "libraries": "Libraries",
           "librariesEmpty": "You have no libraries to choose from.",
-          "noLibrarySelection": "Choose at least one library, or switch to all books."
+          "noLibrarySelection": "Choose at least one library, or switch to all books.",
+          "patternPreviewNote": "This is the final path. The book's file extension is added automatically."
         },
         "librariesSummary": "{count, plural, one {Syncs every EPUB in # selected library.} other {Syncs every EPUB in # selected libraries.}}"
       },
