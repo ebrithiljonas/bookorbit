@@ -1,8 +1,8 @@
 # CrossPoint Reader Sync
 
-BookOrbit can upload EPUB books from your library to a CrossPoint Reader over Wi-Fi. Books are copied from the library into a folder BookOrbit manages on the reader's SD card.
+BookOrbit can upload EPUB books from your library to a CrossPoint Reader over Wi-Fi and receive reading progress, bookmarks, and reading time back from the reader. Books are copied from the library into a folder BookOrbit manages on the reader's SD card.
 
-Reading progress, highlights, bookmarks, and reading status are not part of this sync.
+Highlights and clippings are not supported yet. Keep **Sync Clippings** disabled on the reader until they are.
 
 ## Requirements
 
@@ -22,6 +22,26 @@ Reading progress, highlights, bookmarks, and reading status are not part of this
 7. Select **Add reader**.
 
 The new reader starts with the managed folder `/BookOrbit`, the filename pattern `{library}/<{authors:first}|Unknown Author>/<{series}/>{originalFilename}`, and all accessible books selected.
+
+After creation, BookOrbit shows a **sync endpoint** URL once. It looks like:
+
+```text
+https://your-bookorbit-server/api/v1/crosspoint/sync/<token>
+```
+
+Keep it private. If it is lost, use the link button on the reader card to generate a new URL. The old URL stops working immediately.
+
+## Set up reading sync on the reader
+
+1. Open the reader's CrossPoint Sync settings.
+2. Set the server URL to the endpoint shown by BookOrbit.
+3. Enter any username and password. The endpoint token identifies the reader.
+4. Choose `CrossPoint` or `Other` as the server type.
+5. Keep the match method at `Filename` unless you specifically need binary matching.
+6. Enable **Send metadata** so BookOrbit can use the per-book sidecar for exact matching.
+7. Leave **Sync Clippings** off.
+
+BookOrbit writes a small `<book>.meta.json` file next to each uploaded EPUB. The reader forwards its `bookorbit_file_id` during progress sync, which lets BookOrbit match the exact library file even after a rename. Books without a sidecar fall back to the per-reader ledger, then the filename or binary hash.
 
 ## Choose books
 
@@ -53,6 +73,15 @@ Changing the pattern changes the paths on the next sync. With removal enabled, t
 - A sync interrupted by a server restart is marked interrupted. Run it again to continue; already uploaded books are skipped.
 - **Activity** lists recent runs with counts and errors.
 
+## Reading sync
+
+- Progress is two-way: the reader pulls the newest BookOrbit position and pushes its own position back.
+- Reading status is derived from progress using the library's reading and finished thresholds, the same as other readers.
+- Bookmarks sync both ways for books the reader has opened.
+- Reading sessions reported by the reader are added to BookOrbit reading time and daily statistics.
+- Rich CrossPoint positions are stored per reader and served back to readers that support them.
+- A document that cannot be matched is accepted and ignored with a server warning. Re-sync the book so its sidecar is uploaded, or check that the book still exists in an accessible library.
+
 ## Troubleshooting
 
 **The reader cannot be reached.** Check that it is in File Transfer mode, that it is on the same Wi-Fi network, and that the address is correct.
@@ -68,4 +97,5 @@ Changing the pattern changes the paths on the next sync. With removal enabled, t
 ## Limitations
 
 - EPUBs are sent as they are stored in BookOrbit. The Calibre plugin's EPUB optimizer is not part of this version.
+- Highlights and clippings are not synced yet. Keep **Sync Clippings** disabled.
 - One BookOrbit account should own a given reader. Sharing one reader between accounts can make their managed folders overlap.
